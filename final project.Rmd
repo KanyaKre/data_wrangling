@@ -1,0 +1,134 @@
+---
+title: "Final Project"
+author: "Kanya Kreprasertkul"
+date: "4/4/2020"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(rvest)
+library(tidyverse)
+library(dplyr)
+library(choroplethr)
+library(choroplethrMaps)
+```
+
+```{r}
+tuition_cost <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-03-10/tuition_cost.csv')
+
+tuition_income <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-03-10/tuition_income.csv') 
+
+salary_potential <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-03-10/salary_potential.csv')
+salary_potential <- unique(salary_potential)
+
+historical_tuition <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-03-10/historical_tuition.csv')
+
+diversity_school <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-03-10/diversity_school.csv')
+```
+
+```{r}
+school_diversity <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-09-24/school_diversity.csv")
+```
+
+
+```{r}
+
+t <- left_join(salary_potential, tuition_cost, by = "name")
+
+salary_potential$state_name <- gsub("-", " ", salary_potential$state_name)
+names(salary_potential)[3] <- "state"
+
+state_code <- tuition_cost %>%
+  select(state, state_code) %>%
+  unique()
+
+# library(datasets)
+# data(state_codes)
+#install.packages("openintro")
+library(openintro)
+salary_potential <- salary_potential %>% 
+  mutate(state_code = state2abbr(state))
+#state2abbr(state)
+```
+
+```{r}
+union(t$name,salary_potential$name)
+
+```
+
+```{r}
+tuition_cost[duplicated(tuition_cost$name),]
+```
+
+```{r}
+#download world university ranking data from the website
+Urank <- "https://cwur.org/2019-2020.php" %>%
+  read_html() %>%
+  html_table(fill = TRUE) %>%
+  .[[1]]
+```
+
+```{r}
+n_country <- Urank %>%
+  select(Location) %>%
+  group_by(Location) %>%
+  summarise(total = n()) %>%
+  arrange(desc(total))
+
+names(n_country) <- c("region", "value")
+n_country$region <- tolower(n_country$region)
+
+n_country$region[n_country$region == "usa"] <- "united states of america"
+n_country$region[n_country$region == "slovak republic"] <- "slovakia"
+
+country_df <- data.frame(country.regions)
+```
+
+```{r}
+country_choropleth(n_country, title = "n by country")
+```
+
+
+```{r}
+library(rvest)    # devtools::install_github("rvest","hadley")
+library(stringr)  # install.pacakges("stringr")
+
+url <- "http://colleges.usnews.rankingsandreviews.com/best-colleges/rankings/national-universities/data/page+%d"
+
+trimNewline <- function(p) str_replace(p, "\n","")
+asInteger <- function(x) as.integer(str_replace(x,",",""))
+fromPercent <- function(x) as.numeric(str_replace(x, "%", ""))/100
+
+table <- 1:3 %>%
+  lapply(function(page) {
+    nodes <- sprintf(url, page) %>%
+      html() %>%
+      html_nodes("table tbody tr")
+
+    column <- function(xpath) nodes %>% html_node(xpath = xpath) %>% html_text(trim = TRUE)
+
+    data.frame(
+      rank = column("td[1]/div[1]/span") %>%
+        str_replace("#(\\d+)(Tie)?","\\1") %>%
+        as.integer,
+      score = column("td[1]/span[1]/span") %>%
+        str_replace("(\\d+) out of 100.","\\1") %>%
+        asInteger,
+      name = column("td[2]/a"),
+      location = column("td[2]/p/text()[1]"),
+      tuitionAndFees = column("td[3]/text()[1]") %>% trimNewline,
+      totalEnrollment = column("td[4]/text()[1]") %>% asInteger,
+      fall2013AcceptanceRate = column("td[5]/text()[1]") %>% fromPercent,
+      averageFreshmanRetentionRate = column("td[6]/text()[1]") %>% fromPercent(),
+      sixYearGraduationRate = column("td[7]/text()[1]") %>% fromPercent,
+      stringsAsFactors = FALSE
+    )
+  }) %>%
+  do.call(rbind, .)
+```
+
+
