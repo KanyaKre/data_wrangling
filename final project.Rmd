@@ -73,62 +73,33 @@ Urank <- "https://cwur.org/2019-2020.php" %>%
 ```
 
 ```{r}
+#number of universities in top ranking by country
 n_country <- Urank %>%
   select(Location) %>%
   group_by(Location) %>%
   summarise(total = n()) %>%
   arrange(desc(total))
 
+#change column name to be compatible with choroplethr package
 names(n_country) <- c("region", "value")
 n_country$region <- tolower(n_country$region)
-
+#change some of region name to be compatible with choroplethr package
 n_country$region[n_country$region == "usa"] <- "united states of america"
 n_country$region[n_country$region == "slovak republic"] <- "slovakia"
-
-country_df <- data.frame(country.regions)
+n_country$region[n_country$region == "serbia"] <- "republic of serbia"
 ```
 
 ```{r}
-country_choropleth(n_country, title = "n by country")
+#get region data from choroplethrMaps package
+data("country.regions")
+#merge all regions from choroplethrMaps package and our dataset
+n_country <- full_join(n_country, country.regions %>% select(region), by = "region")
+n_country$value <- replace_na(n_country$value, 0)
+head(n_country)
 ```
 
+We can see that USA has the highest number of universities in top ranking. 
 
-```{r}
-library(rvest)    # devtools::install_github("rvest","hadley")
-library(stringr)  # install.pacakges("stringr")
-
-url <- "http://colleges.usnews.rankingsandreviews.com/best-colleges/rankings/national-universities/data/page+%d"
-
-trimNewline <- function(p) str_replace(p, "\n","")
-asInteger <- function(x) as.integer(str_replace(x,",",""))
-fromPercent <- function(x) as.numeric(str_replace(x, "%", ""))/100
-
-table <- 1:3 %>%
-  lapply(function(page) {
-    nodes <- sprintf(url, page) %>%
-      html() %>%
-      html_nodes("table tbody tr")
-
-    column <- function(xpath) nodes %>% html_node(xpath = xpath) %>% html_text(trim = TRUE)
-
-    data.frame(
-      rank = column("td[1]/div[1]/span") %>%
-        str_replace("#(\\d+)(Tie)?","\\1") %>%
-        as.integer,
-      score = column("td[1]/span[1]/span") %>%
-        str_replace("(\\d+) out of 100.","\\1") %>%
-        asInteger,
-      name = column("td[2]/a"),
-      location = column("td[2]/p/text()[1]"),
-      tuitionAndFees = column("td[3]/text()[1]") %>% trimNewline,
-      totalEnrollment = column("td[4]/text()[1]") %>% asInteger,
-      fall2013AcceptanceRate = column("td[5]/text()[1]") %>% fromPercent,
-      averageFreshmanRetentionRate = column("td[6]/text()[1]") %>% fromPercent(),
-      sixYearGraduationRate = column("td[7]/text()[1]") %>% fromPercent,
-      stringsAsFactors = FALSE
-    )
-  }) %>%
-  do.call(rbind, .)
+```{r, warning = FALSE}
+country_choropleth(n_country, title = "Number of universities in top ranking by country")
 ```
-
-
