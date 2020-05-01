@@ -15,20 +15,195 @@ library(tidyverse)
 library(dplyr)
 library(choroplethr)
 library(choroplethrMaps)
+library(jsonlite)
 ```
 
 ```{r}
-tuition_cost <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-03-10/tuition_cost.csv')
+#download world university ranking data from the website
+world_rank <- "https://cwur.org/2019-2020.php" %>%
+  read_html() %>%
+  html_table(fill = TRUE) %>%
+  .[[1]]
+```
 
-tuition_income <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-03-10/tuition_income.csv') 
+```{r}
+#number of universities in top ranking by country
+n_country <- world_rank %>%
+  select(Location) %>%
+  group_by(Location) %>%
+  summarise(total = n()) %>%
+  arrange(desc(total))
+
+#change column name to be compatible with choroplethr package
+names(n_country) <- c("region", "value")
+n_country$region <- tolower(n_country$region)
+#change some of region name to be compatible with choroplethr package
+n_country$region[n_country$region == "usa"] <- "united states of america"
+n_country$region[n_country$region == "slovak republic"] <- "slovakia"
+n_country$region[n_country$region == "serbia"] <- "republic of serbia"
+```
+
+```{r}
+#get region data from choroplethrMaps package
+data("country.regions")
+#merge all regions from choroplethrMaps package and our dataset
+n_country <- full_join(n_country, country.regions %>% select(region), by = "region")
+n_country$value <- replace_na(n_country$value, 0)
+```
+
+```{r, warning = FALSE}
+country_choropleth(n_country, title = "Number of universities in top ranking by country", num_colors = 9)
+```
+
+```{r}
+#to see top countries
+head(n_country, 5)
+```
+
+We can see that USA has the highest number of universities in top ranking. So, I want to look into education system in USA.
+
+```{r}
+#get only ranking of universities in USA
+usa_world_rank <- world_rank %>%
+  filter(Location == "USA")
+```
+
+```{r}
+#import dataset from GitHub
+tuition_cost <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-03-10/tuition_cost.csv')
 
 salary_potential <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-03-10/salary_potential.csv')
 salary_potential <- unique(salary_potential)
 
-historical_tuition <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-03-10/historical_tuition.csv')
-
 diversity_school <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-03-10/diversity_school.csv')
 ```
+
+```{r}
+#add percent of diversity
+diversity_school <- diversity_school %>%
+  mutate(percentage = 100 * enrollment / total_enrollment)
+```
+
+```{r}
+#remove row containing NA and select only important columns
+diversity_school <- diversity_school[!is.na(diversity_school$name), ] %>%
+  select(-c("total_enrollment", "enrollment"))
+#use spread() to distributes category and percentage
+diversity_school2 <- spread(diversity_school, category, percentage) %>%
+  select(name, state, White, Black, Hispanic, Asian, Women)
+```
+
+```{r}
+usa_world_rank2 <- usa_world_rank
+usa_world_rank2[(str_detect(usa_world_rank2$Institution, " – ")), ]$Institution <- str_replace(usa_world_rank2[(str_detect(usa_world_rank2$Institution, " – ")), ]$Institution, " – ", " at ")
+
+usa_world_rank2[(str_detect(usa_world_rank2$Institution, " - ")), ]$Institution <- str_replace(usa_world_rank2[(str_detect(usa_world_rank2$Institution, " - ")), ]$Institution, " - ", " at ")
+
+usa_world_rank2[(str_detect(usa_world_rank2$Institution, "–")), ]$Institution <- str_replace(usa_world_rank2[(str_detect(usa_world_rank2$Institution, "–")), ]$Institution, "–", " at ")
+
+usa_world_rank2[(str_detect(usa_world_rank2$Institution, "-")), ]$Institution <- str_replace(usa_world_rank2[(str_detect(usa_world_rank2$Institution, "-")), ]$Institution, "-", " at ")
+
+usa_world_rank2[(str_detect(usa_world_rank2$Institution, ", ")), ]$Institution <- str_replace(usa_world_rank2[(str_detect(usa_world_rank2$Institution, ", ")), ]$Institution, ", ", " at ")
+```
+
+```{r}
+diversity_school2[(str_detect(diversity_school2$name, " -")), ]$name <- str_replace(diversity_school2[(str_detect(diversity_school2$name, " -")), ]$name, " -", " at ")
+
+diversity_school2[(str_detect(diversity_school2$name, "-")), ]$name <- str_replace(diversity_school2[(str_detect(diversity_school2$name, "-")), ]$name, "-", " at ")
+
+  
+```
+
+
+```{r}
+usa_world_rank2[(str_detect(usa_world_rank2$Institution, "–|-")), ]
+```
+
+
+```{r}
+#change university name (for further inner join)
+
+diversity_school2$name[1264] <- usa_world_rank2$Institution[305]
+diversity_school2$name[1751] <- usa_world_rank2$Institution[93]
+#at diversity_school2$name[2587] <- usa_world_rank$Institution[165]
+#at diversity_school2$name[3296] <- usa_world_rank$Institution[32]
+#at diversity_school2$name[3297] <- usa_world_rank$Institution[191]
+diversity_school2$name[3562] <- usa_world_rank2$Institution[329]
+diversity_school2$name[3642] <- usa_world_rank2$Institution[294]
+diversity_school2$name[791] <- usa_world_rank2$Institution[259]
+diversity_school2$name[432] <- usa_world_rank2$Institution[238]
+diversity_school2$name[794] <- usa_world_rank2$Institution[308]
+diversity_school2$name[4196] <- usa_world_rank2$Institution[16]
+diversity_school2$name[3939] <- usa_world_rank2$Institution[21]
+diversity_school2$name[4179] <- usa_world_rank2$Institution[26]
+diversity_school2$name[4351] <- usa_world_rank2$Institution[27]
+diversity_school2$name[3055] <- usa_world_rank2$Institution[31]
+diversity_school2$name[3952] <- usa_world_rank2$Institution[37]
+
+diversity_school2$name[3155] <- usa_world_rank2$Institution[38]
+diversity_school2$name[4123] <- usa_world_rank2$Institution[39]
+diversity_school2$name[4176] <- usa_world_rank2$Institution[51]
+diversity_school2$name[1753] <- usa_world_rank2$Institution[63]
+diversity_school2[(str_detect(diversity_school2$name, "University of Massachusetts")), ]$name <- str_replace(diversity_school2[(str_detect(diversity_school2$name, "University of Massachusetts")), ]$name, " at ", " ")
+
+diversity_school2$name[3671] <- usa_world_rank2$Institution[70]
+diversity_school2$name[933] <- usa_world_rank2$Institution[86]
+diversity_school2$name[1491] <- usa_world_rank2$Institution[101]
+diversity_school2$name[2289] <- usa_world_rank2$Institution[103]
+diversity_school2$name[3883] <- usa_world_rank2$Institution[112]
+diversity_school2$name[780] <- usa_world_rank2$Institution[127]
+diversity_school2$name[2936] <- usa_world_rank2$Institution[139]
+diversity_school2$name[4000] <- usa_world_rank2$Institution[151]
+diversity_school2$name[3918] <- usa_world_rank2$Institution[167]
+diversity_school2$name[802] <- usa_world_rank2$Institution[275]
+
+
+diversity_school2$name[4351]
+usa_world_rank2$Institution[27]
+
+
+####
+
+
+
+
+```
+
+```{r}
+diversity_school2[(str_detect(diversity_school2$name, "University of California")), ]$name <- str_replace(diversity_school2[(str_detect(diversity_school2$name, "University of California")), ]$name, " at ", ", ")
+```
+
+```{r}
+diversity_school2[str_detect(diversity_school2$name, "University of Texas"), ]
+diversity_school2[str_detect(diversity_school2$name, "Queens "), ]
+usa_world_rank2[str_detect(usa_world_rank2$Institution, "Watkins College"), ]
+
+
+which(str_detect(diversity_school2$name, "City University of New York Queens College") == TRUE)
+which(str_detect(usa_world_rank2$Institution, "Queens College at City University of New York") == TRUE)
+```
+
+
+```{r}
+#usa_world_rank2 <- usa_world_rank2 %>% arrange(Institution)
+setdiff(usa_world_rank2$Institution, diversity_school2$name)
+```
+
+
+
+
+```{r}
+#import univrsity statistics (downloaded from kaggle)
+university_stat <- fromJSON("schoolinfo.json")
+#select only important columns
+university_stat <- university_stat %>%
+  select(`act-avg`, `sat-avg`, `acceptance-rate`, `percent-receiving-aid`, `cost-after-aid`, state, isPublic, tuition, displayName)
+```
+
+
+
+
+
 
 ```{r}
 school_diversity <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-09-24/school_diversity.csv")
@@ -62,44 +237,4 @@ union(t$name,salary_potential$name)
 
 ```{r}
 tuition_cost[duplicated(tuition_cost$name),]
-```
-
-```{r}
-#download world university ranking data from the website
-Urank <- "https://cwur.org/2019-2020.php" %>%
-  read_html() %>%
-  html_table(fill = TRUE) %>%
-  .[[1]]
-```
-
-```{r}
-#number of universities in top ranking by country
-n_country <- Urank %>%
-  select(Location) %>%
-  group_by(Location) %>%
-  summarise(total = n()) %>%
-  arrange(desc(total))
-
-#change column name to be compatible with choroplethr package
-names(n_country) <- c("region", "value")
-n_country$region <- tolower(n_country$region)
-#change some of region name to be compatible with choroplethr package
-n_country$region[n_country$region == "usa"] <- "united states of america"
-n_country$region[n_country$region == "slovak republic"] <- "slovakia"
-n_country$region[n_country$region == "serbia"] <- "republic of serbia"
-```
-
-```{r}
-#get region data from choroplethrMaps package
-data("country.regions")
-#merge all regions from choroplethrMaps package and our dataset
-n_country <- full_join(n_country, country.regions %>% select(region), by = "region")
-n_country$value <- replace_na(n_country$value, 0)
-head(n_country)
-```
-
-We can see that USA has the highest number of universities in top ranking. 
-
-```{r, warning = FALSE}
-country_choropleth(n_country, title = "Number of universities in top ranking by country")
 ```
