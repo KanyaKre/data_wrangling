@@ -57,7 +57,7 @@ country_choropleth(n_country, title = "Number of universities in top ranking by 
 
 ```{r}
 #to see top countries
-head(n_country, 5)
+head(n_country, 10)
 ```
 
 We can see that USA has the highest number of universities in top ranking. So, I want to look into education system in USA.
@@ -114,12 +114,6 @@ diversity_school2[(str_detect(diversity_school2$name, "-")), ]$name <- str_repla
   
 ```
 
-
-```{r}
-usa_world_rank2[(str_detect(usa_world_rank2$Institution, "–|-")), ]
-```
-
-
 ```{r}
 #change university name (for further inner join)
 
@@ -158,11 +152,26 @@ diversity_school2$name[3918] <- usa_world_rank2$Institution[167]
 diversity_school2$name[802] <- usa_world_rank2$Institution[275]
 
 
-diversity_school2$name[4351]
-usa_world_rank2$Institution[27]
+diversity_school2$name[4027]
+usa_world_rank2$Institution[279]
 
 
 ####
+diversity_school2$name[2089] <- usa_world_rank2$Institution[173]
+diversity_school2$name[4379] <- usa_world_rank2$Institution[175]
+diversity_school2$name[4035] <- usa_world_rank2$Institution[176]
+diversity_school2$name[2464] <- usa_world_rank2$Institution[179]
+diversity_school2$name[3552] <- usa_world_rank2$Institution[185]
+diversity_school2$name[2754] <- usa_world_rank2$Institution[187]
+diversity_school2$name[3914] <- usa_world_rank2$Institution[209]
+diversity_school2$name[3689] <- usa_world_rank2$Institution[213]
+diversity_school2$name[797] <- usa_world_rank2$Institution[215]
+diversity_school2$name[4224] <- usa_world_rank2$Institution[220]
+diversity_school2$name[4225] <- usa_world_rank2$Institution[257]
+diversity_school2$name[3852] <- usa_world_rank2$Institution[270]
+diversity_school2$name[4346] <- usa_world_rank2$Institution[274]
+diversity_school2$name[4027] <- usa_world_rank2$Institution[279]
+
 
 
 
@@ -170,23 +179,23 @@ usa_world_rank2$Institution[27]
 ```
 
 ```{r}
-diversity_school2[(str_detect(diversity_school2$name, "University of California")), ]$name <- str_replace(diversity_school2[(str_detect(diversity_school2$name, "University of California")), ]$name, " at ", ", ")
+#diversity_school2[(str_detect(diversity_school2$name, "University of California")), ]$name <- str_replace(diversity_school2[(str_detect(diversity_school2$name, "University of California")), ]$name, " at ", ", ")
 ```
 
 ```{r}
 diversity_school2[str_detect(diversity_school2$name, "University of Texas"), ]
-diversity_school2[str_detect(diversity_school2$name, "Queens "), ]
+diversity_school2[str_detect(diversity_school2$name, "University of Minnesota"), ]
 usa_world_rank2[str_detect(usa_world_rank2$Institution, "Watkins College"), ]
 
 
-which(str_detect(diversity_school2$name, "City University of New York Queens College") == TRUE)
-which(str_detect(usa_world_rank2$Institution, "Queens College at City University of New York") == TRUE)
+which(str_detect(diversity_school2$name, "University of Minnesota at Duluth") == TRUE)
+which(str_detect(usa_world_rank2$Institution, "University of Minnesota Duluth") == TRUE)
 ```
 
 
 ```{r}
 #usa_world_rank2 <- usa_world_rank2 %>% arrange(Institution)
-setdiff(usa_world_rank2$Institution, diversity_school2$name)
+setdiff(usa_world_rank2$Institution, diversity_school2$name)[17:43]
 ```
 
 
