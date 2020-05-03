@@ -17,6 +17,7 @@ library(choroplethr)
 library(choroplethrMaps)
 library(jsonlite)
 library(ggplot2)
+library(gridExtra)
 ```
 
 ```{r}
@@ -53,7 +54,7 @@ n_country$value <- replace_na(n_country$value, 0)
 ```
 
 ```{r, warning = FALSE}
-country_choropleth(n_country, title = "Number of universities in top ranking by country", num_colors = 9)
+country_choropleth(n_country, title = "The Number of University in Top 2000 Ranking by Country", num_colors = 9)
 ```
 
 ```{r}
@@ -77,6 +78,14 @@ salary_potential <- readr::read_csv('https://raw.githubusercontent.com/rfordatas
 salary_potential <- unique(salary_potential)
 
 diversity_school <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-03-10/diversity_school.csv')
+```
+
+```{r}
+#import univrsity statistics (downloaded from kaggle)
+university_stat <- fromJSON("schoolinfo.json")
+#select only important columns
+university_stat <- university_stat %>%
+  select(`act-avg`, `sat-avg`, `acceptance-rate`, `percent-receiving-aid`, `cost-after-aid`, state, isPublic, tuition, displayName)
 ```
 
 ```{r}
@@ -115,7 +124,6 @@ diversity_school2[(str_detect(diversity_school2$name, "-")), ]$name <- str_repla
 
 ```{r}
 #change university name (for further inner join)
-
 diversity_school2$name[1264] <- usa_world_rank2$Institution[305]
 diversity_school2$name[1751] <- usa_world_rank2$Institution[93]
 diversity_school2$name[3562] <- usa_world_rank2$Institution[329]
@@ -129,13 +137,11 @@ diversity_school2$name[4179] <- usa_world_rank2$Institution[26]
 diversity_school2$name[4351] <- usa_world_rank2$Institution[27]
 diversity_school2$name[3055] <- usa_world_rank2$Institution[31]
 diversity_school2$name[3952] <- usa_world_rank2$Institution[37]
-
 diversity_school2$name[3155] <- usa_world_rank2$Institution[38]
 diversity_school2$name[4123] <- usa_world_rank2$Institution[39]
 diversity_school2$name[4176] <- usa_world_rank2$Institution[51]
 diversity_school2$name[1753] <- usa_world_rank2$Institution[63]
 diversity_school2[(str_detect(diversity_school2$name, "University of Massachusetts")), ]$name <- str_replace(diversity_school2[(str_detect(diversity_school2$name, "University of Massachusetts")), ]$name, " at ", " ")
-
 diversity_school2$name[3671] <- usa_world_rank2$Institution[70]
 diversity_school2$name[933] <- usa_world_rank2$Institution[86]
 diversity_school2$name[1491] <- usa_world_rank2$Institution[101]
@@ -201,7 +207,38 @@ setdiff(usa_world_rank2$Institution, diversity_school2$name)
 rank_diversity_df <- inner_join(diversity_school2, usa_world_rank2, by = c("name" = "Institution")) %>%
   arrange(National.Rank) %>%
   mutate(Men = 100 - Women)
+```
 
+```{r}
+university_stat2 <- university_stat
+university_stat2[(str_detect(university_stat2$displayName, "--")), ]$displayName <- str_replace(university_stat2[(str_detect(university_stat2$displayName, "--")), ]$displayName, "--", " at ")
+```
+
+```{r}
+#change university name (for further inner join)
+university_stat2$displayName[60] <- rank_diversity_df$name[16]
+university_stat2$displayName[53] <- rank_diversity_df$name[17]
+university_stat2$displayName[44] <- rank_diversity_df$name[21]
+university_stat2$displayName[52] <- rank_diversity_df$name[31]
+university_stat2$displayName[54] <- rank_diversity_df$name[36]
+university_stat2$displayName[92] <- rank_diversity_df$name[37]
+university_stat2$displayName[57] <- rank_diversity_df$name[38]
+university_stat2$displayName[193] <- rank_diversity_df$name[89]
+university_stat2$displayName[90] <- rank_diversity_df$name[61]
+university_stat2$displayName[77] <- rank_diversity_df$name[63]
+university_stat2$displayName[115] <- rank_diversity_df$name[64]
+university_stat2$displayName[84] <- rank_diversity_df$name[66]
+university_stat2$displayName[123] <- rank_diversity_df$name[67]
+university_stat2$displayName[98] <- rank_diversity_df$name[68]
+university_stat2$displayName[100] <- rank_diversity_df$name[90]
+university_stat2$displayName[102] <- rank_diversity_df$name[92]
+```
+
+```{r}
+rank_diversity_df <- left_join(rank_diversity_df, university_stat2, by = c("name" = "displayName")) 
+```
+
+```{r}
 #change name of the university to be the official name
 rank_diversity_df$name[6] <- "University of California, Berkeley"
 rank_diversity_df$name[13] <- "University of California, Los Angeles"
@@ -235,7 +272,6 @@ rank_diversity_df <- rank_diversity_df %>%
 ```{r}
 #gather by race
 rank_diversity_df2 <- gather(rank_diversity_df, key = "Race", value = value, White2, Black2, Hispanic2, Asian2) %>% arrange(National.Rank)
-
 rank_diversity_df2$Race <- str_replace(rank_diversity_df2$Race, "2", "")
 ```
 
@@ -243,11 +279,11 @@ rank_diversity_df2$Race <- str_replace(rank_diversity_df2$Race, "2", "")
 #use ggplot2 barplot to demonstrate the percentage of diversity
 axis_lable1 <- c(rank_diversity_df$name[1:49])
 axis_lable1 <- axis_lable1[order(-1:-49)]
-ggplot(data = rank_diversity_df2[1:196, ], aes(x = name, y = value, fill = Race)) + geom_bar(stat = "identity") + coord_flip() + scale_x_discrete(limits = axis_lable1) + xlab("Institution") + ylab("Diversity Percentage") + ggtitle("Diversity Percentage of University in 1-50 Ranking")
+ggplot(data = rank_diversity_df2[1:196, ], aes(x = name, y = value, fill = Race)) + geom_bar(stat = "identity") + coord_flip() + scale_x_discrete(limits = axis_lable1) + xlab("Institution") + ylab("Diversity Percentage") + ggtitle("Diversity Percentage of University in 1-50 Ranking") + theme(axis.title.x = element_blank(), axis.title.y = element_blank())
 
 axis_lable2 <- c(rank_diversity_df$name[50:96])
 axis_lable2 <- axis_lable2[order(-1:-47)]
-ggplot(data = rank_diversity_df2[197:384, ], aes(x = name, y = value, fill = Race)) + geom_bar(stat = "identity") + coord_flip() + scale_x_discrete(limits = axis_lable2) + xlab("Institution") + ylab("Diversity Percentage") + ggtitle("Diversity Percentage of University in 51-100 Ranking")
+ggplot(data = rank_diversity_df2[197:384, ], aes(x = name, y = value, fill = Race)) + geom_bar(stat = "identity") + coord_flip() + scale_x_discrete(limits = axis_lable2) + xlab("Institution") + ylab("Diversity Percentage") + ggtitle("Diversity Percentage of University in 51-100 Ranking") + theme(axis.title.x = element_blank(), axis.title.y = element_blank())
 ```
 
 ```{r, fig.width = 8, fig.height = 8}
@@ -255,58 +291,92 @@ ggplot(data = rank_diversity_df2[197:384, ], aes(x = name, y = value, fill = Rac
 rank_diversity_df3 <- gather(rank_diversity_df, key = "Sex", value = value, Men, Women) %>%
   arrange(National.Rank)
 
-ggplot(data = rank_diversity_df3[1:98, ], aes(x = name, y = value, fill = Sex)) + geom_bar(stat = "identity") + coord_flip() + scale_x_discrete(limits = axis_lable1) + xlab("Institution") + ylab("Sex Ratio") + ggtitle("Sex Ratio of University in 1-50 Ranking") + scale_fill_brewer(palette = "Paired")
+ggplot(data = rank_diversity_df3[1:98, ], aes(x = name, y = value, fill = Sex)) + geom_bar(stat = "identity") + coord_flip() + scale_x_discrete(limits = axis_lable1) + xlab("Institution") + ylab("Sex Ratio") + ggtitle("Sex Ratio of University in 1-50 Ranking") + scale_fill_brewer(palette = "Paired") + theme(axis.title.x = element_blank(), axis.title.y = element_blank())
 
-ggplot(data = rank_diversity_df3[99:192, ], aes(x = name, y = value, fill = Sex)) + geom_bar(stat = "identity") + coord_flip() + scale_x_discrete(limits = axis_lable2) + xlab("Institution") + ylab("Sex Ratio") + ggtitle("Sex Ratio of University in 51-100 Ranking") + scale_fill_brewer(palette = "Paired")
-```
-
-
-
-
-
-
-```{r}
-#import univrsity statistics (downloaded from kaggle)
-university_stat <- fromJSON("schoolinfo.json")
-#select only important columns
-university_stat <- university_stat %>%
-  select(`act-avg`, `sat-avg`, `acceptance-rate`, `percent-receiving-aid`, `cost-after-aid`, state, isPublic, tuition, displayName)
+ggplot(data = rank_diversity_df3[99:192, ], aes(x = name, y = value, fill = Sex)) + geom_bar(stat = "identity") + coord_flip() + scale_x_discrete(limits = axis_lable2) + xlab("Institution") + ylab("Sex Ratio") + ggtitle("Sex Ratio of University in 51-100 Ranking") + scale_fill_brewer(palette = "Paired") + theme(axis.title.x = element_blank(), axis.title.y = element_blank())
 ```
 
 ```{r}
-university_stat2 <- university_stat
-university_stat2[(str_detect(university_stat2$displayName, "--")), ]$displayName <- str_replace(university_stat2[(str_detect(university_stat2$displayName, "--")), ]$displayName, "--", " at ")
+which(is.na(rank_diversity_df$`acceptance-rate`[1:96]) == TRUE)
+#there are 8 universities that do not have acceptance rate and tuition fee
 
-#"--"
+rank_diversity_df$`percent-receiving-aid`
+```
+
+```{r, warning = FALSE}
+#1-50 Ranking
+f1 <- ggplot(data = rank_diversity_df[1:49, ], aes(x = National.Rank, y = `acceptance-rate`)) + geom_point() + xlab("National Ranking") + ylab("Acceptance Rate") + stat_smooth(method = "lm", formula = y ~ x, size = 1)
+
+f2 <- ggplot(data = rank_diversity_df[1:49, ], aes(x = National.Rank, y = tuition)) + geom_point() + xlab("National Ranking") + ylab("Tuition Fee") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+
+f3 <- ggplot(data = rank_diversity_df[1:49, ], aes(x = National.Rank, y = `percent-receiving-aid`)) + geom_point() + xlab("National Ranking") + ylab("Percent Receiving Aid") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+
+f4 <- ggplot(data = rank_diversity_df[1:49, ], aes(x = National.Rank, y = `cost-after-aid`)) + geom_point() + xlab("National Ranking") + ylab("Tution Fee (after receiving aid)") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+
+#50-100 Ranking
+f5 <- ggplot(data = rank_diversity_df[50:96, ], aes(x = National.Rank, y = `acceptance-rate`)) + geom_point() + xlab("National Ranking") + ylab("Acceptance Rate") + stat_smooth(method = "lm", formula = y ~ x, size = 1)
+
+f6 <- ggplot(data = rank_diversity_df[50:96, ], aes(x = National.Rank, y = tuition)) + geom_point() + xlab("National Ranking") + ylab("Tuition Fee") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+
+f7 <- ggplot(data = rank_diversity_df[50:96, ], aes(x = National.Rank, y = `percent-receiving-aid`)) + geom_point() + xlab("National Ranking") + ylab("Percent Receiving Aid") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+
+f8 <- ggplot(data = rank_diversity_df[50:96, ], aes(x = National.Rank, y = `cost-after-aid`)) + geom_point() + xlab("National Ranking") + ylab("Tution Fee (after receiving aid)") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+
+grid.arrange(f1, f2, f3, f4, ncol = 2)
+grid.arrange(f5, f6, f7, f8, ncol = 2)
 ```
 
 ```{r}
-university_stat2$displayName[33]
-diversity_school2$name[911]
-
-university_stat2$displayName[19] <- diversity_school2$name[4351]
-university_stat2$displayName[33] <- diversity_school2$name[911]
-university_stat2$displayName[53] <- diversity_school2$name[3990]
-university_stat2$displayName[54] <- diversity_school2$name[2911]
-university_stat2$displayName[56] <- diversity_school2$name[1491]
-university_stat2$displayName[61] <- diversity_school2$name[451]
-university_stat2$displayName[115] <- diversity_school2$name[166]
-university_stat2$displayName[84] <- diversity_school2$name[2789]
-university_stat2$displayName[123] <- diversity_school2$name[4031]
-university_stat2$displayName[98] <- diversity_school2$name[3671]
-university_stat2$displayName[193] <- diversity_school2$name[1751]
-university_stat2$displayName[100] <- diversity_school2$name[3884]
-university_stat2$displayName[109] <- diversity_school2$name[4164]
+salary_potential2 <- salary_potential
 ```
 
+```{r}
+#change university name (for further inner join)
+salary_potential2$name[574] <- rank_diversity_df$name[4]
+salary_potential2$name[61] <- rank_diversity_df$name[6]
+salary_potential2$name[69] <- rank_diversity_df$name[13]
+salary_potential2$name[64] <- rank_diversity_df$name[21]
+salary_potential2$name[73] <- rank_diversity_df$name[34]
+salary_potential2$name[70] <- rank_diversity_df$name[40]
+salary_potential2$name[68] <- rank_diversity_df$name[41]
+salary_potential2$name[867] <- rank_diversity_df$name[16]
+salary_potential2$name[404] <- rank_diversity_df$name[14]
+salary_potential2$name[795] <- rank_diversity_df$name[22]
+salary_potential2$name[430] <- rank_diversity_df$name[25]
+salary_potential2$name[797] <- rank_diversity_df$name[70]
+salary_potential2$name[467] <- rank_diversity_df$name[27]
+salary_potential2$name[708] <- rank_diversity_df$name[31]
+salary_potential2$name[843] <- rank_diversity_df$name[35]
+salary_potential2$name[633] <- rank_diversity_df$name[36]
+salary_potential2$name[215] <- rank_diversity_df$name[38]
+salary_potential2$name[225] <- rank_diversity_df$name[89]
+salary_potential2$name[715] <- rank_diversity_df$name[39]
+salary_potential2$name[149] <- rank_diversity_df$name[45]
+salary_potential2$name[794] <- rank_diversity_df$name[48]
+salary_potential2$name[355] <- rank_diversity_df$name[53]
+salary_potential2$name[220] <- rank_diversity_df$name[61]
+salary_potential2$name[397] <- rank_diversity_df$name[63]
+salary_potential2$name[31] <- rank_diversity_df$name[64]
+salary_potential2$name[593] <- rank_diversity_df$name[66]
+salary_potential2$name[468] <- rank_diversity_df$name[67]
+salary_potential2$name[797] <- rank_diversity_df$name[70]
+salary_potential2$name[635] <- rank_diversity_df$name[81]
+salary_potential2$name[85] <- rank_diversity_df$name[82]
+salary_potential2$name[844] <- rank_diversity_df$name[91]
+salary_potential2$name[773] <- rank_diversity_df$name[92]
+salary_potential2$name[561] <- rank_diversity_df$name[93]
+salary_potential2$name[133] <- rank_diversity_df$name[95]
+```
 
 ```{r}
-university_stat2[str_detect(university_stat2$displayName, "University of Tennessee"), ]
-diversity_school2[str_detect(diversity_school2$name, "University of Tennessee"), ]
-usa_world_rank2[str_detect(usa_world_rank2$Institution, "Pittsburgh"), ]
+salary_potential2[str_detect(salary_potential2$name, "University of South Florida"), ]
+rank_diversity_df[str_detect(rank_diversity_df$name, "University of South Florida"), ]
 
-which(str_detect(diversity_school2$name, "University of Tennessee at Knoxville") == TRUE)
-which(str_detect(university_stat2$displayName, "University of Tennessee") == TRUE)
+which(str_detect(salary_potential2$name, "University of South Florida") == TRUE)
+which(str_detect(rank_diversity_df$name, "University of South Florida") == TRUE)
+
+salary_potential2$name[133]
+rank_diversity_df$name[95]
 ```
 
 ```{r}
@@ -316,8 +386,62 @@ setdiff(university_stat2$displayName, diversity_school2$name)
 setdiff(rank_diversity_df$name[1:96], university_stat2$displayName)
 ```
 
+```{r}
+# 8 
+setdiff(rank_diversity_df$name[1:96], salary_potential2$name)
+```
 
+```{r}
+rank_diversity_df <- left_join(rank_diversity_df, salary_potential2, by = c("name" = "name")) 
+```
 
+```{r, warning = FALSE}
+#rank_diversity_df$stem_percent
+
+#1-50 Ranking
+f9 <- ggplot(data = rank_diversity_df[1:49, ], aes(x = National.Rank, y = early_career_pay)) + geom_point() + xlab("National Ranking") + ylab("Early Career Pay") + stat_smooth(method = "lm", formula = y ~ x, size = 1)
+
+f10 <- ggplot(data = rank_diversity_df[1:49, ], aes(x = National.Rank, y = mid_career_pay)) + geom_point() + xlab("National Ranking") + ylab("Mid Career Pay") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+
+f11 <- ggplot(data = rank_diversity_df[1:49, ], aes(x = National.Rank, y = make_world_better_percent)) + geom_point() + xlab("National Ranking") + ylab("Make World Better Percentage") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+
+f12 <- ggplot(data = rank_diversity_df[1:49, ], aes(x = National.Rank, y = stem_percent)) + geom_point() + xlab("National Ranking") + ylab("STEM Percentage") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+
+#50-100 Ranking
+f13 <- ggplot(data = rank_diversity_df[50:96, ], aes(x = National.Rank, y = early_career_pay)) + geom_point() + xlab("National Ranking") + ylab("Early Career Pay") + stat_smooth(method = "lm", formula = y ~ x, size = 1)
+
+f14 <- ggplot(data = rank_diversity_df[50:96, ], aes(x = National.Rank, y = mid_career_pay)) + geom_point() + xlab("National Ranking") + ylab("Mid Career Pay") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+
+f15 <- ggplot(data = rank_diversity_df[50:96, ], aes(x = National.Rank, y = make_world_better_percent)) + geom_point() + xlab("National Ranking") + ylab("Make World Better Percentage") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+
+f16 <- ggplot(data = rank_diversity_df[50:96, ], aes(x = National.Rank, y = stem_percent)) + geom_point() + xlab("National Ranking") + ylab("STEM Percentage") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+
+grid.arrange(f9, f10, f11, f12, ncol = 2)
+grid.arrange(f13, f14, f15, f16, ncol = 2)
+```
+
+```{r}
+count_state <- rank_diversity_df[1:96, ] %>%
+  select(state.x) %>%
+  group_by(state.x) %>%
+  summarise(value = n()) %>%
+  arrange(desc(value))
+```
+
+```{r}
+names(count_state)[1] <- "region"
+count_state$region <- tolower(count_state$region)
+count_state$region[count_state$region == "washington"] <- "district of columbia"
+count_state2 <- data.frame(continental_us_states)
+names(count_state2)[1] <- "region"
+count_state2 <- left_join(count_state2, count_state, key = c("region" = "region"))
+count_state2$value <- replace_na(count_state2$value, 0)
+```
+
+```{r}
+data(continental_us_states)
+state_choropleth(count_state2, title  = "The Number of University in Top 100 USA Ranking by State", zoom = continental_us_states)
+```
 
 
 
