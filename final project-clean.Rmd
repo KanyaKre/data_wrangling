@@ -399,7 +399,7 @@ Figure 2. The number of university in top 2000 ranking by state.
 
 As shown in Figure 3, I plotted the relation between acceptance rate and national ranking, and used stat_smooth() to see their linear relationship. Acceptance rate is the rate at which applicants are accepted. The lower acceptance rate, the harder applicants get admitted. As expected, university with better ranking has lower acceptance rate. Also, it is significantly low for university within top 10 ranking. For the relation between tuition fee and national ranking, university with better ranking has higher tuiton fee which is interesting. This might mean that higher tuition can provide better education quality. So, I want to see more about tuition fee.  
 \  
-```{r, warning = FALSE, fig.width = 8, fig.height = 6, echo = FALSE}
+```{r, warning = FALSE, echo = FALSE, fig.width = 5, fig.height = 4, fig.align = "center"}
 #acceptance rate vs. national ranking
 f1 <- ggplot(data = top100Data, aes(x = National.Rank, y = `acceptance-rate`)) + geom_point() + xlab("National Ranking") + ylab("Acceptance Rate") + stat_smooth(method = "lm", formula = y ~ x, size = 1)
 #tuition fee vs. national ranking
@@ -414,7 +414,7 @@ Figure 3. Upper: Relation between acceptance rate and national ranking. Lower: R
 Next, I plotted the relation between percent of students who received aid and national ranking. We can see from Figure 4 that university with better ranking offers aid to their students more than university in lower ranking. When looking into tuition fee after receiving aid, total tuition fee of university with better ranking is lower than total tuition fee of university in lower ranking. As they give our more funding, they can attract many talented students. Also, some students are really smart, but they do not have sufficient money. This might be the reason why university in high ranking have higher education quality. So, I wanted to look more into a type of university because private university and public university have different type of funding system.
 \  
 
-```{r, warning = FALSE, fig.width = 8, fig.height = 6, echo = FALSE}
+```{r, warning = FALSE, echo = FALSE, fig.width = 5, fig.height = 4, fig.align = "center"}
 #percent of students who received aid vs. national ranking
 f3 <- ggplot(data = top100Data, aes(x = National.Rank, y = `percent-receiving-aid`)) + geom_point() + xlab("National Ranking") + ylab("Percent Receiving Aid") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
 #tuition fee after received aid vs. national ranking
@@ -429,7 +429,7 @@ Figure 4. Upper: Relation between percent of students who received aid and natio
 Public university is funded by state governments. In contrast, private university relies on private contributions. So, private university tuition fee is generally higher. To prove this claim, I plotted to see differences between private university and public university. In data preprocessing, there are 8 missing data in the column indicating private or public. So, I manually filled NA because this information can be easily searched from internet (unlike acceptance rate or percent of students who received aid). There are 33 private university and 63 public university within the 100 national ranking. As usual, private university tuition fee is higher than public university tuition fee. But, average percent of students who received aid from private university is two times higher. This means private university in my dataset receives plentyful private contributions.
 \  
 
-```{r, echo = FALSE, fig.width = 7, fig.height = 4}
+```{r, echo = FALSE, fig.width = 6.5, fig.height = 3, fig.align = "center"}
 #group data by university type (private or public)
 #find total number, average of tuition fee and average of percent of students who received aid
 school_type <- top100Data %>% 
@@ -461,7 +461,7 @@ Figure 5. Left: total number of private university and public university in top 
 Next, I plotted to see the relation between tuition fee and national ranking and the relation between percent of students who received aid and national ranking again. But this time, I colored each point by university type because I want to see their distinction. We can see that private university tends to have better rank than public university. Almost all of the top 10th university are private university. Most of private university tuition fee are higher than public university tuition fee. But, most of private university offers more funding to their students. We can see that almost half of the students in private university received aid. This might be the reason why private university has many intelligent students even though their tuition fee is high.
 \  
 
-```{r, warning = FALSE, echo = FALSE, fig.width = 8, fig.height = 6}
+```{r, warning = FALSE, echo = FALSE, fig.width = 5, fig.height = 4, fig.align = "center"}
 #tuition fee vs. national ranking colored by university type
 f8 <- ggplot(data = top100Data, aes(x = National.Rank, y = tuition, color = institutionalControl)) + geom_point() + xlab("National Ranking") + ylab("Tuition Fee") + scale_colour_discrete(name = "University Type", labels = c("Private", "Public")) 
 #percent of students who received aid vs. national ranking colored by university type
@@ -473,7 +473,7 @@ grid.arrange(f8, f9, ncol = 1)
 Figure 6. Upper: Relation between tuition fee and national ranking colored with university type. Lower: Relation between percent of students who received aid and national ranking colored with university type.
 \end{center} 
 
-Diverity dataset provides many races, i.e. White, Black, Hispanic, Asian, American Indian / Alaska Native, Native Hawaiian / Pacific Islander, Two Or More Races, Non-Resident Foreign, Total Minority and Unknown. So, I chose only major race, i.e. White, Black, Hispanic and Asian. Then, I need to re-scale the numebr to make total of 4 races 100%. Next, I mutate the numbers and then use gather() for futher barplot.
+Diverity dataset provides many races, i.e. White, Black, Hispanic, Asian, American Indian / Alaska Native, Native Hawaiian / Pacific Islander, Two Or More Races, Non-Resident Foreign, Total Minority and Unknown. So, I chose only major race, i.e. White, Black, Hispanic and Asian. Then, I re-scaled the numebr to make total of 4 races 100%. Next, I mutate the numbers and then use gather() for futher barplot.
 \  
 
 ```{r, echo = FALSE, include = FALSE}
@@ -486,7 +486,7 @@ top100Data2 <- gather(top100Data, key = "Race", value = value, White2, Black2, H
 top100Data2$Race <- str_replace(top100Data2$Race, "2", "")
 ```
 
-There are many articles stating about how diversity benefit education quality. To prove this claim, I plotted diversity percentage of each university in 100 ranking. University in top 50 ranking is shown in Figure 7 and the rest is shown in Figure 9. As we found out earlier that California has the higher number in the top 100 ranking, I plotted Figure 8 to examine only university in California. There are 12 universities and we can see that they have high diversity. Also, they have high percentage of Asian students comparing to other races, which might be because many Asian people live in California.
+There are many articles stating about how diversity benefit education quality. To prove this claim, I plotted diversity percentage of each university in 100 ranking. University in top 50 ranking is shown in Figure 7 and the rest is shown in Figure 9. As we found out earlier that California has the highest number in the top 100 ranking, I plotted Figure 8 to examine only university in California. There are 12 universities and we can see that they have high diversity. Also, they have high percentage of Asian students comparing to other races, which might be because many Asian people live in California.
 \  
 
 ```{r, echo = FALSE, fig.width = 8, fig.height = 8}
@@ -526,7 +526,7 @@ Figure 9. Diversity percentage of university in 51-100 ranking.
 SAT score and ACT score are a standardized test used for college admissions in the United States. As expected, students who got into university in better ranking have higher test score. This information is useful for students who is considering applying for college admissions. As admission has a fee and application process need a letter of recommendation, students need to consider whether they will be admitted or not. The record can inspire students to keep pushing themselves if they want to get in a high ranking university. Also, high school teachers can use this data to encourage their students and make a better preparation for them.
 \  
 
-```{r, echo = FALSE, fig.width = 8, fig.height = 6, warning = FALSE}
+```{r, echo = FALSE, fig.width = 5, fig.height = 4, fig.align = "center", warning = FALSE}
 #average ACT score vs. national ranking
 f10 <- ggplot(data = top100Data, aes(x = National.Rank, y = `act-avg`)) + geom_point() + xlab("National Ranking") + ylab("Average ACT Score") + stat_smooth(method = "lm", formula = y ~ x, size = 1)
 #average SAT score vs. national ranking
@@ -541,7 +541,7 @@ Figure 10. Upper: Relation between ACT score and national ranking. Lower: Relati
 Next, I plotted to see the relation between early career salary and national ranking, and the relation between mid-career salary and national ranking. We can see that people who graduted from better ranking university tend to have higher salary which is not surprising. Students graduated from famous university might be able to ask for higher salary. Also, it might be easier for them to get a job in the top biggest company. Even when they are at the middle of their career, they still tend to get better pay. This might indicate that they tend to get promotion and be succesful in their career.
 \  
 
-```{r, echo = FALSE, warning = FALSE, fig.width = 8, fig.height = 6, warning = FALSE}
+```{r, echo = FALSE, fig.width = 5, fig.height = 4, fig.align = "center", warning = FALSE}
 #early career salary vs. national ranking 
 f12 <- ggplot(data = top100Data, aes(x = National.Rank, y = early_career_pay)) + geom_point() + xlab("National Ranking") + ylab("Early Career Pay") + stat_smooth(method = "lm", formula = y ~ x, size = 1)
 #mid-career salary vs. national ranking
@@ -553,7 +553,7 @@ grid.arrange(f12, f13, ncol = 1)
 Figure 11. Upper: Relation between early career salary and national ranking. Lower: Relation between mid-career salary and national ranking.
 \end{center} 
 
-Then, I plotted to see the relation between percent of student body in STEM and national ranking. University in higher ranking tends to have higer percent of student body in STEM, and this might be the reason why students graduted from higher rank university get higher salary. However, looking into percent of alumni who think they are making the world a better place graph, we can see that higher number of students graduating from lower rank university think they are making the world a better place. This might be able to infer that those students are happier and less stressful.
+Then, I plotted to see the relation between percent of student body in STEM and national ranking. University in higher ranking tends to have higher percent of student body in STEM, and this might be the reason why students graduted from higher rank university get higher salary. However, looking into percent of alumni who think they are making the world a better place graph, we can see that higher number of students graduating from lower rank university think they are making the world a better place. This might be able to infer that those students are happier and less stressful.
 \  
 
 ```{r, echo = FALSE, fig.width = 8, fig.height = 6, warning = FALSE}
@@ -569,7 +569,7 @@ Figure 12. Upper: Relation between percent of student body in STEM and national 
 \end{center} 
 
 # Conclusion
-University ranking record is widely publish. Anybody can access this record. Although, these data need a lot of preprocessing, they provide many insights. For example, students can use this record to estimate which university they can get admitted. As every univrsity wants to develop and get a better rank, faculty member can use this data to make action, such as provide more funding to students, increase diversity environment, etc. In addition, there are many factors contributing to the ranking. By investigating all plots, funding and diversity seem to be the most important factors. However, further research should be conducted.
+University ranking records are widely published. Anybody can access these records. Although, these data need a lot of preprocessing, they provide many insights. For example, students can use them to estimate which university they can get admitted. As every univrsity wants to develop and get a better rank, faculty member can use these data to make action, such as provide more funding to students, increase diversity environment, etc. In addition, there are many factors contributing to the ranking. By investigating all plots, funding and diversity seem to be the most important factors. However, further research should be conducted.
 
 # Reference
 * (n.d.). CWUR - World University Rankings 2019-2020. Retrieved from https://cwur.org/2019-2020.php
@@ -578,3 +578,6 @@ University ranking record is widely publish. Anybody can access this record. Alt
 
 + Christopher Lambert. (2018, Jan 21). University Statistics. Retrieved from 
 https://www.kaggle.com/theriley106/university-statistics
+
+# Link to GitHub repository
+* https://github.com/KanyaKre/data_wrangling.git
