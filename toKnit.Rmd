@@ -1,0 +1,95 @@
+---
+title: "Untitled"
+author: "Kanya Kreprasertkul"
+date: "5/3/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(rvest)
+library(tidyverse)
+library(dplyr)
+library(choroplethr)
+library(choroplethrMaps)
+library(jsonlite)
+library(ggplot2)
+library(gridExtra)
+library(knitr)
+library(kableExtra)
+```
+
+```{r}
+#download world university ranking data from the website
+world_rank <- "https://cwur.org/2019-2020.php" %>%
+  read_html() %>%
+  html_table(fill = TRUE) %>%
+  .[[1]]
+```
+
+```{r}
+#number of universities in top ranking by country
+n_country <- world_rank %>%
+  select(Location) %>%
+  group_by(Location) %>%
+  summarise(total = n()) %>%
+  arrange(desc(total))
+```
+
+```{r}
+#to see top countries
+result_table <- data.frame(head(n_country, 10))
+names(result_table) <- c("Country", "Count")
+result_table$Country[1] <- "United States of America"
+```
+
+```{r}
+kable(result_table) %>%
+  kable_styling(bootstrap_options = "striped", full_width = F)
+```
+
+```{r}
+#change column name to be compatible with choroplethr package
+names(n_country) <- c("region", "value")
+n_country$region <- tolower(n_country$region)
+#change some of region name to be compatible with choroplethr package
+n_country$region[n_country$region == "usa"] <- "united states of america"
+n_country$region[n_country$region == "slovak republic"] <- "slovakia"
+n_country$region[n_country$region == "serbia"] <- "republic of serbia"
+```
+
+```{r}
+#get region data from choroplethrMaps package
+data("country.regions")
+#merge all regions from choroplethrMaps package and our dataset
+n_country <- full_join(n_country, country.regions %>% select(region), by = "region")
+n_country$value <- replace_na(n_country$value, 0)
+```
+
+```{r, warning = FALSE}
+country_choropleth(n_country, title = "Number of University in Top 2000 Ranking by Country", num_colors = 9)
+```
+
+```{r}
+top100 <- read.csv(file = 'top100Data.csv')
+```
+
+```{r}
+count_state <- top100 %>%
+  select(state.x) %>%
+  group_by(state.x) %>%
+  summarise(value = n()) %>%
+  arrange(desc(value))
+```
+
+```{r}
+#to see top state
+result_table2 <- data.frame(head(count_state, 10))
+names(result_table2) <- c("State", "Count")
+#
+kable(result_table2) %>%
+  kable_styling(bootstrap_options = "striped", full_width = F)
+```

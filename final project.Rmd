@@ -18,6 +18,8 @@ library(choroplethrMaps)
 library(jsonlite)
 library(ggplot2)
 library(gridExtra)
+library(knitr)
+library(kableExtra)
 ```
 
 ```{r}
@@ -35,7 +37,21 @@ n_country <- world_rank %>%
   group_by(Location) %>%
   summarise(total = n()) %>%
   arrange(desc(total))
+```
 
+```{r}
+#to see top countries in the ranking
+result_table <- data.frame(head(n_country, 10))
+names(result_table) <- c("Country", "Count")
+result_table$Country[1] <- "United States of America"
+#use kable to make pretty table
+kable(result_table) %>%
+  kable_styling(bootstrap_options = "striped", full_width = F)
+```
+
+We can see that USA has the highest number of universities in top ranking. So, I want to look into education system in USA.
+
+```{r}
 #change column name to be compatible with choroplethr package
 names(n_country) <- c("region", "value")
 n_country$region <- tolower(n_country$region)
@@ -58,13 +74,6 @@ country_choropleth(n_country, title = "The Number of University in Top 2000 Rank
 ```
 
 ```{r}
-#to see top countries
-head(n_country, 10)
-```
-
-We can see that USA has the highest number of universities in top ranking. So, I want to look into education system in USA.
-
-```{r}
 #get only ranking of universities in USA
 usa_world_rank <- world_rank %>%
   filter(Location == "USA")
@@ -72,8 +81,6 @@ usa_world_rank <- world_rank %>%
 
 ```{r}
 #import dataset from GitHub
-tuition_cost <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-03-10/tuition_cost.csv')
-
 salary_potential <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-03-10/salary_potential.csv')
 salary_potential <- unique(salary_potential)
 
@@ -85,7 +92,7 @@ diversity_school <- readr::read_csv('https://raw.githubusercontent.com/rfordatas
 university_stat <- fromJSON("schoolinfo.json")
 #select only important columns
 university_stat <- university_stat %>%
-  select(`act-avg`, `sat-avg`, `acceptance-rate`, `percent-receiving-aid`, `cost-after-aid`, state, isPublic, tuition, displayName)
+  select(`act-avg`, `sat-avg`, `acceptance-rate`, `percent-receiving-aid`, `cost-after-aid`, institutionalControl, tuition, displayName)
 ```
 
 ```{r}
@@ -303,28 +310,23 @@ which(is.na(rank_diversity_df$`acceptance-rate`[1:96]) == TRUE)
 rank_diversity_df$`percent-receiving-aid`
 ```
 
-```{r, warning = FALSE}
-#1-50 Ranking
-f1 <- ggplot(data = rank_diversity_df[1:49, ], aes(x = National.Rank, y = `acceptance-rate`)) + geom_point() + xlab("National Ranking") + ylab("Acceptance Rate") + stat_smooth(method = "lm", formula = y ~ x, size = 1)
+```{r, warning = FALSE, fig.width = 8, fig.height = 6}
 
-f2 <- ggplot(data = rank_diversity_df[1:49, ], aes(x = National.Rank, y = tuition)) + geom_point() + xlab("National Ranking") + ylab("Tuition Fee") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+f1 <- ggplot(data = top100Data, aes(x = National.Rank, y = `acceptance-rate`)) + geom_point() + xlab("National Ranking") + ylab("Acceptance Rate") + stat_smooth(method = "lm", formula = y ~ x, size = 1)
 
-f3 <- ggplot(data = rank_diversity_df[1:49, ], aes(x = National.Rank, y = `percent-receiving-aid`)) + geom_point() + xlab("National Ranking") + ylab("Percent Receiving Aid") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+f2 <- ggplot(data = top100Data, aes(x = National.Rank, y = tuition)) + geom_point() + xlab("National Ranking") + ylab("Tuition Fee") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
 
-f4 <- ggplot(data = rank_diversity_df[1:49, ], aes(x = National.Rank, y = `cost-after-aid`)) + geom_point() + xlab("National Ranking") + ylab("Tution Fee (after receiving aid)") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+f3 <- ggplot(data = top100Data, aes(x = National.Rank, y = `percent-receiving-aid`)) + geom_point() + xlab("National Ranking") + ylab("Percent Receiving Aid") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
 
-#50-100 Ranking
-f5 <- ggplot(data = rank_diversity_df[50:96, ], aes(x = National.Rank, y = `acceptance-rate`)) + geom_point() + xlab("National Ranking") + ylab("Acceptance Rate") + stat_smooth(method = "lm", formula = y ~ x, size = 1)
+f4 <- ggplot(data = top100Data, aes(x = National.Rank, y = `cost-after-aid`)) + geom_point() + xlab("National Ranking") + ylab("Tution Fee (after receiving aid)") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
 
-f6 <- ggplot(data = rank_diversity_df[50:96, ], aes(x = National.Rank, y = tuition)) + geom_point() + xlab("National Ranking") + ylab("Tuition Fee") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
-
-f7 <- ggplot(data = rank_diversity_df[50:96, ], aes(x = National.Rank, y = `percent-receiving-aid`)) + geom_point() + xlab("National Ranking") + ylab("Percent Receiving Aid") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
-
-f8 <- ggplot(data = rank_diversity_df[50:96, ], aes(x = National.Rank, y = `cost-after-aid`)) + geom_point() + xlab("National Ranking") + ylab("Tution Fee (after receiving aid)") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
-
-grid.arrange(f1, f2, f3, f4, ncol = 2)
-grid.arrange(f5, f6, f7, f8, ncol = 2)
+grid.arrange(f1, f2, ncol = 1)
+grid.arrange(f3, f4, ncol = 1)
 ```
+
+
+
+
 
 ```{r}
 salary_potential2 <- salary_potential
@@ -389,36 +391,109 @@ setdiff(rank_diversity_df$name[1:96], university_stat2$displayName)
 ```{r}
 # 8 
 setdiff(rank_diversity_df$name[1:96], salary_potential2$name)
+names(rank_diversity_df)
 ```
 
 ```{r}
-rank_diversity_df <- left_join(rank_diversity_df, salary_potential2, by = c("name" = "name")) 
+rank_diversity_df <- left_join(rank_diversity_df, salary_potential2, by = c("name" = "name")) %>%
+  select(-c("Location", "Quality.of.Education", "Alumni.Employment", "Quality.of.Faculty", "Research.Performance", "Score", "rank", "state_name"))
+top100Data <- rank_diversity_df[1:96, ]
 ```
 
-```{r, warning = FALSE}
+```{r}
+#write dataframe to csv file
+write.csv(top100Data, "top100Data.csv", row.names = FALSE)
+```
+
+```{r, warning = FALSE, fig.width = 8, fig.height = 6}
 #rank_diversity_df$stem_percent
 
 #1-50 Ranking
-f9 <- ggplot(data = rank_diversity_df[1:49, ], aes(x = National.Rank, y = early_career_pay)) + geom_point() + xlab("National Ranking") + ylab("Early Career Pay") + stat_smooth(method = "lm", formula = y ~ x, size = 1)
+f5 <- ggplot(data = top100Data, aes(x = National.Rank, y = early_career_pay)) + geom_point() + xlab("National Ranking") + ylab("Early Career Pay") + stat_smooth(method = "lm", formula = y ~ x, size = 1)
 
-f10 <- ggplot(data = rank_diversity_df[1:49, ], aes(x = National.Rank, y = mid_career_pay)) + geom_point() + xlab("National Ranking") + ylab("Mid Career Pay") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+f6 <- ggplot(data = top100Data, aes(x = National.Rank, y = mid_career_pay)) + geom_point() + xlab("National Ranking") + ylab("Mid Career Pay") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
 
-f11 <- ggplot(data = rank_diversity_df[1:49, ], aes(x = National.Rank, y = make_world_better_percent)) + geom_point() + xlab("National Ranking") + ylab("Make World Better Percentage") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
-
-f12 <- ggplot(data = rank_diversity_df[1:49, ], aes(x = National.Rank, y = stem_percent)) + geom_point() + xlab("National Ranking") + ylab("STEM Percentage") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
-
-#50-100 Ranking
-f13 <- ggplot(data = rank_diversity_df[50:96, ], aes(x = National.Rank, y = early_career_pay)) + geom_point() + xlab("National Ranking") + ylab("Early Career Pay") + stat_smooth(method = "lm", formula = y ~ x, size = 1)
-
-f14 <- ggplot(data = rank_diversity_df[50:96, ], aes(x = National.Rank, y = mid_career_pay)) + geom_point() + xlab("National Ranking") + ylab("Mid Career Pay") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
-
-f15 <- ggplot(data = rank_diversity_df[50:96, ], aes(x = National.Rank, y = make_world_better_percent)) + geom_point() + xlab("National Ranking") + ylab("Make World Better Percentage") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
-
-f16 <- ggplot(data = rank_diversity_df[50:96, ], aes(x = National.Rank, y = stem_percent)) + geom_point() + xlab("National Ranking") + ylab("STEM Percentage") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
-
-grid.arrange(f9, f10, f11, f12, ncol = 2)
-grid.arrange(f13, f14, f15, f16, ncol = 2)
+grid.arrange(f5, f6, ncol = 1)
 ```
+
+
+```{r, fig.width = 8, fig.height = 6}
+
+f7 <- ggplot(data = top100Data, aes(x = National.Rank, y = stem_percent)) + geom_point() + xlab("National Ranking") + ylab("STEM Percentage") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+
+f8 <- ggplot(data = top100Data, aes(x = National.Rank, y = make_world_better_percent)) + geom_point() + xlab("National Ranking") + ylab("Make World Better Percentage") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+
+grid.arrange(f7, f8, ncol = 1)
+```
+
+
+```{r, fig.width = 8, fig.height = 6}
+#top100Data$`sat-avg`
+f9 <- ggplot(data = top100Data, aes(x = National.Rank, y = `act-avg`)) + geom_point() + xlab("National Ranking") + ylab("Average ACT Score") + stat_smooth(method = "lm", formula = y ~ x, size = 1)
+
+f10 <- ggplot(data = top100Data, aes(x = National.Rank, y = `sat-avg`)) + geom_point() + xlab("National Ranking") + ylab("Average SAT Score") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+
+grid.arrange(f9, f10, ncol = 1)
+```
+
+```{r}
+#, fig.width = 8, fig.height = 6
+#manually fill NA
+top100Data$institutionalControl[23] <- "public"
+top100Data$institutionalControl[26] <- "public"
+top100Data$institutionalControl[50] <- "public"
+top100Data$institutionalControl[56] <- "private"
+top100Data$institutionalControl[60] <- "private"
+top100Data$institutionalControl[70] <- "public"
+top100Data$institutionalControl[77] <- "public"
+top100Data$institutionalControl[86] <- "public"
+
+school_type <- top100Data %>% 
+  select(institutionalControl, tuition, `percent-receiving-aid`) %>% 
+  group_by(institutionalControl) %>% 
+  summarise(
+    Count = n(),
+    Average_Tuition = mean(tuition, na.rm = TRUE),
+    Average_Aid = mean(`percent-receiving-aid`, na.rm = TRUE)
+  ) 
+  
+school_type$institutionalControl[1] <- "Private"
+school_type$institutionalControl[2] <- "Public"
+school_type$Average_Tuition <- formatC(school_type$Average_Tuition / 1000, digits = 2, format = "f")
+school_type$Average_Aid <- formatC(school_type$Average_Aid, digits = 2, format = "f")
+
+#school_type <- gather(school_type, key = "Variable", value = value, Count, Average_Tuition, Average_Aid)
+
+ggplot(data = school_type, aes(x = Variable, y = value, fill = institutionalControl)) +
+geom_bar(stat = "identity", position = position_dodge())
+
+f11 <- ggplot(school_type, aes(x = institutionalControl, y = Count)) + geom_bar(stat = "identity") + xlab("University Type") + ylab("Count") + geom_text(aes(label = Count), vjust = 1.6, color = "white", size = 5) + theme_light(base_size = 15)
+
+f12 <- ggplot(school_type, aes(x = institutionalControl, y = Average_Tuition)) + geom_bar(stat = "identity") + xlab("University Type") + ylab("Tuition Fee (in thousand)") + geom_text(aes(label = Average_Tuition), vjust = 1.6, color = "white", size = 5) + theme_light(base_size = 15)
+
+f13 <- ggplot(school_type, aes(x = institutionalControl, y = Average_Aid)) + geom_bar(stat = "identity") + xlab("University Type") + ylab("Average of Receiving Aid") + geom_text(aes(label = Average_Aid), vjust = 1.6, color = "white", size = 5) + theme_light(base_size = 15)
+
+grid.arrange(f11, f12, f13, ncol = 3)
+```
+
+
+```{r, fig.width = 8, fig.height = 6}
+f14 <- ggplot(data = top100Data, aes(x = National.Rank, y = tuition, color = institutionalControl)) + geom_point() + xlab("National Ranking") + ylab("Tuition Fee") + scale_colour_discrete(name = "University Type", labels = c("Private", "Public")) 
+
+f15 <- ggplot(data = top100Data, aes(x = National.Rank, y = `percent-receiving-aid`, color = institutionalControl)) + geom_point() + xlab("National Ranking") + ylab("Percent Receiving Aid") + scale_colour_discrete(name = "University Type", labels = c("Private", "Public"))  
+
+grid.arrange(f14, f15, ncol = 1)
+#top100Data$institutionalControl
+```
+
+
+
+```{r}
+
+
+#top100Data$National.Rank
+```
+
 
 ```{r}
 count_state <- rank_diversity_df[1:96, ] %>%
@@ -429,6 +504,16 @@ count_state <- rank_diversity_df[1:96, ] %>%
 ```
 
 ```{r}
+#to see top state
+result_table2 <- data.frame(head(count_state, 10))
+names(result_table2) <- c("State", "Count")
+#
+kable(result_table2) %>%
+  kable_styling(bootstrap_options = "striped", full_width = F)
+```
+
+```{r}
+data(continental_us_states)
 names(count_state)[1] <- "region"
 count_state$region <- tolower(count_state$region)
 count_state$region[count_state$region == "washington"] <- "district of columbia"
@@ -439,37 +524,8 @@ count_state2$value <- replace_na(count_state2$value, 0)
 ```
 
 ```{r}
-data(continental_us_states)
 state_choropleth(count_state2, title  = "The Number of University in Top 100 USA Ranking by State", zoom = continental_us_states)
 ```
 
 
 
-```{r}
-
-t <- left_join(salary_potential, tuition_cost, by = "name")
-
-salary_potential$state_name <- gsub("-", " ", salary_potential$state_name)
-names(salary_potential)[3] <- "state"
-
-state_code <- tuition_cost %>%
-  select(state, state_code) %>%
-  unique()
-
-# library(datasets)
-# data(state_codes)
-#install.packages("openintro")
-library(openintro)
-salary_potential <- salary_potential %>% 
-  mutate(state_code = state2abbr(state))
-#state2abbr(state)
-```
-
-```{r}
-union(t$name,salary_potential$name)
-
-```
-
-```{r}
-tuition_cost[duplicated(tuition_cost$name),]
-```
