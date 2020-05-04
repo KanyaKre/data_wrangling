@@ -1,0 +1,580 @@
+---
+title: "Data Wrangling Final Project - Top University Record"
+author: "Kanya Kreprasertkul"
+date: "4/4/2020"
+output:
+  html_document:
+    df_print: paged
+  word_document:
+    reference_docx: 
+  pdf_document: default
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+\  
+  University rankings record is beneficial to every person who is related to education systems. For example, students can use this data to consider which university they should apply. Academic personnel can use it to improve their quality of education. High school teacher can also use it to guide their children. Nowadays, there are many online sources that publish university rankings record. They use several types of methodology to calculate ranking, such as learning environment, research performance, academic award received by faculty member, etc. As I have interested in education system, I want to demonstrate this record into graphics to make it easier to interpret and to extract some insights from it.
+&nbsp;  
+
+```{r, include = FALSE}
+#attach all library needed
+library(rvest)
+library(tidyverse)
+library(dplyr)
+library(choroplethr)
+library(choroplethrMaps)
+library(jsonlite)
+library(ggplot2)
+library(gridExtra)
+library(knitr)
+library(kableExtra)
+library(flextable)
+```
+
+# Datasets
+
+\  
+The first data source is World University Rankings 2019-2020 data from Center for World University Rankings website. This website uses quality of education, alumni employment, quality of faculty and research performance to indicate the rankings. It provides top 2000 world ranking and location of each university. Also, it shows national ranking of each university.
+
+&nbsp;  
+\  
+The second data source is diversity and pay dataset from GitHub. Diversity dataset contains diversity record of 4,574 universities. It shows the number of total enrollment and the number of enrollments of each race. Pay dataset provides early career salary, mid-career salary, percent of student body in STEM and percent of alumni who think they are making the world a better place.
+
+&nbsp;  
+\  
+The last data source is University Statistics from Kaggle which is in JSON file. This dataset includes many interesting variables, such as acceptance rate, tuition fee, percent of students who received aid, etc. However, there are 311 only universities included in this dataset.
+
+```{r}
+
+```
+
+# Data Preprocessing
+\  
+First of all, I imported all dataset and stored them in data frames. After I investigated them, I found out that I need to perform many data cleaning. As I want to join data frames, I need to change university name which is a key that I used to join them. There are several universities that have different way to write their name. For example, “Virginia Polytechnic Institute and State University” and “Virginia Tech”. Also, each data source used different format to write university name. For example, “Rutgers University-New Brunswick”, “Rutgers University--New Brunswick” and “Rutgers University at New Brunswick”.
+
+&nbsp; 
+\  
+There are more than hundred rows of university name that I need to change. So, I decided to focus on only university in top 100 USA university ranking but I still need to clean around hundred rows in total. I used setdiff() to see what university name I need to change. Apart from changing rows name, I used str_replace() to replace some format. For example, replace "-" with "at" or "--" with "at". After I cleaned all data and join them into one data frame, I changed some of university name to be the official name to make it useful for further investigation.
+
+```{r, echo = FALSE}
+#First data source
+#download world university ranking data from Center for World University Rankings website
+world_rank <- "https://cwur.org/2019-2020.php" %>%
+  read_html() %>%
+  html_table(fill = TRUE) %>%
+  .[[1]]
+```
+
+```{r, echo = FALSE}
+#number of universities in top ranking by country
+n_country <- world_rank %>%
+  select(Location) %>%
+  group_by(Location) %>%
+  summarise(total = n()) %>%
+  arrange(desc(total))
+```
+
+# Results
+After I downloaded top 2000 world university rankings, I calculated total number of universities from each country. Table 1 shows top 10 ountries in top 2000 world university rankings. We can see that United States of America has the highest number, following by China and Japan. So, I determined to look deeper into education system in USA.
+&nbsp; 
+```{r, echo = FALSE}
+#see top countries in the ranking
+result_table <- data.frame(head(n_country, 10))
+names(result_table) <- c("Country", "Count")
+result_table$Country[1] <- "United States of America"
+#use kable to make pretty table 
+kable(result_table) %>% kable_styling(bootstrap_options = "striped", full_width = F)
+```
+\begin{center}
+Table 1. Top 10 countries in top 2000 world university rankings.
+\end{center} 
+```{r, echo = FALSE}
+#change column name to be compatible with the choroplethr package
+names(n_country) <- c("region", "value")
+n_country$region <- tolower(n_country$region)
+#change some of region name to be compatible with choroplethr package
+n_country$region[n_country$region == "usa"] <- "united states of america"
+n_country$region[n_country$region == "slovak republic"] <- "slovakia"
+n_country$region[n_country$region == "serbia"] <- "republic of serbia"
+```
+
+```{r, echo = FALSE}
+#get region data from the choroplethrMaps package
+data("country.regions")
+#merge all regions from choroplethrMaps package and our dataset
+n_country <- full_join(n_country, country.regions %>% select(region), by = "region")
+#fill NA with zero
+n_country$value <- replace_na(n_country$value, 0)
+```
+  
+Then, I changed column name and some of country name to make my data compatible with the choroplethr package. Following, I attached region data from the choroplethrMaps package and merged it with my data and then I created a choropleth map of my data as shown in Figure 1.
+
+```{r, echo = FALSE, warning = FALSE}
+#set warning = FALSE because there are some countries in my data that does not belong in data of choroplethr package
+country_choropleth(n_country, num_colors = 9)
+```
+\begin{center}
+Figure 1. The number of university in top 2000 ranking by country. 
+\end{center} 
+
+```{r, echo = FALSE}
+#get only ranking of universities in USA
+usa_world_rank <- world_rank %>%
+  filter(Location == "USA")
+```
+
+```{r, echo = FALSE, include = FALSE}
+#second data source
+#import dataset from GitHub
+salary_potential <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-03-10/salary_potential.csv')
+salary_potential <- unique(salary_potential)
+
+diversity_school <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-03-10/diversity_school.csv')
+```
+
+```{r, echo = FALSE}
+#add percent of diversity to diversity_school data frame
+diversity_school <- diversity_school %>%
+  mutate(percentage = 100 * enrollment / total_enrollment)
+#remove row containing NA and select only important columns
+diversity_school <- diversity_school[!is.na(diversity_school$name), ] %>%
+  select(-c("total_enrollment", "enrollment"))
+#use spread() to distributes category and percentage
+diversity_school2 <- spread(diversity_school, category, percentage) %>%
+  select(name, state, White, Black, Hispanic, Asian, Women)
+```
+
+```{r, echo = FALSE}
+#start cleaning data for further join
+#need to change a lot of university name
+usa_world_rank2 <- usa_world_rank
+
+usa_world_rank2[(str_detect(usa_world_rank2$Institution, " – ")), ]$Institution <- str_replace(usa_world_rank2[(str_detect(usa_world_rank2$Institution, " – ")), ]$Institution, " – ", " at ")
+
+usa_world_rank2[(str_detect(usa_world_rank2$Institution, " - ")), ]$Institution <- str_replace(usa_world_rank2[(str_detect(usa_world_rank2$Institution, " - ")), ]$Institution, " - ", " at ")
+
+usa_world_rank2[(str_detect(usa_world_rank2$Institution, "–")), ]$Institution <- str_replace(usa_world_rank2[(str_detect(usa_world_rank2$Institution, "–")), ]$Institution, "–", " at ")
+
+usa_world_rank2[(str_detect(usa_world_rank2$Institution, "-")), ]$Institution <- str_replace(usa_world_rank2[(str_detect(usa_world_rank2$Institution, "-")), ]$Institution, "-", " at ")
+
+usa_world_rank2[(str_detect(usa_world_rank2$Institution, ", ")), ]$Institution <- str_replace(usa_world_rank2[(str_detect(usa_world_rank2$Institution, ", ")), ]$Institution, ", ", " at ")
+
+diversity_school2[(str_detect(diversity_school2$name, " -")), ]$name <- str_replace(diversity_school2[(str_detect(diversity_school2$name, " -")), ]$name, " -", " at ")
+
+diversity_school2[(str_detect(diversity_school2$name, "-")), ]$name <- str_replace(diversity_school2[(str_detect(diversity_school2$name, "-")), ]$name, "-", " at ")
+
+diversity_school2$name[1264] <- usa_world_rank2$Institution[305]
+diversity_school2$name[1751] <- usa_world_rank2$Institution[93]
+diversity_school2$name[3562] <- usa_world_rank2$Institution[329]
+diversity_school2$name[3642] <- usa_world_rank2$Institution[294]
+diversity_school2$name[791] <- usa_world_rank2$Institution[259]
+diversity_school2$name[432] <- usa_world_rank2$Institution[238]
+diversity_school2$name[794] <- usa_world_rank2$Institution[308]
+diversity_school2$name[4196] <- usa_world_rank2$Institution[16]
+diversity_school2$name[3939] <- usa_world_rank2$Institution[21]
+diversity_school2$name[4179] <- usa_world_rank2$Institution[26]
+diversity_school2$name[4351] <- usa_world_rank2$Institution[27]
+diversity_school2$name[3055] <- usa_world_rank2$Institution[31]
+diversity_school2$name[3952] <- usa_world_rank2$Institution[37]
+diversity_school2$name[3155] <- usa_world_rank2$Institution[38]
+diversity_school2$name[4123] <- usa_world_rank2$Institution[39]
+diversity_school2$name[4176] <- usa_world_rank2$Institution[51]
+diversity_school2$name[1753] <- usa_world_rank2$Institution[63]
+diversity_school2[(str_detect(diversity_school2$name, "University of Massachusetts")), ]$name <- str_replace(diversity_school2[(str_detect(diversity_school2$name, "University of Massachusetts")), ]$name, " at ", " ")
+diversity_school2$name[3671] <- usa_world_rank2$Institution[70]
+diversity_school2$name[933] <- usa_world_rank2$Institution[86]
+diversity_school2$name[1491] <- usa_world_rank2$Institution[101]
+diversity_school2$name[2289] <- usa_world_rank2$Institution[103]
+diversity_school2$name[3883] <- usa_world_rank2$Institution[112]
+diversity_school2$name[780] <- usa_world_rank2$Institution[127]
+diversity_school2$name[2936] <- usa_world_rank2$Institution[139]
+diversity_school2$name[4000] <- usa_world_rank2$Institution[151]
+diversity_school2$name[3918] <- usa_world_rank2$Institution[167]
+diversity_school2$name[802] <- usa_world_rank2$Institution[275]
+diversity_school2$name[2089] <- usa_world_rank2$Institution[173]
+diversity_school2$name[4379] <- usa_world_rank2$Institution[175]
+diversity_school2$name[4035] <- usa_world_rank2$Institution[176]
+diversity_school2$name[2464] <- usa_world_rank2$Institution[179]
+diversity_school2$name[3552] <- usa_world_rank2$Institution[185]
+diversity_school2$name[2754] <- usa_world_rank2$Institution[187]
+diversity_school2$name[3914] <- usa_world_rank2$Institution[209]
+diversity_school2$name[3689] <- usa_world_rank2$Institution[213]
+diversity_school2$name[797] <- usa_world_rank2$Institution[215]
+diversity_school2$name[4224] <- usa_world_rank2$Institution[220]
+diversity_school2$name[4225] <- usa_world_rank2$Institution[257]
+diversity_school2$name[3852] <- usa_world_rank2$Institution[270]
+diversity_school2$name[4346] <- usa_world_rank2$Institution[274]
+diversity_school2$name[4027] <- usa_world_rank2$Institution[279]
+diversity_school2$name[4064] <- usa_world_rank2$Institution[296]
+diversity_school2$name[3682] <- usa_world_rank2$Institution[298]
+usa_world_rank2 <- data.frame(rbind(usa_world_rank2, usa_world_rank2[304, ]))
+usa_world_rank2$Institution[304] <- diversity_school2$name[3319]
+usa_world_rank2$Institution[359] <- diversity_school2$name[885]
+diversity_school2$name[3917] <- usa_world_rank2$Institution[319]
+diversity_school2$name[4530] <- usa_world_rank2$Institution[322]
+diversity_school2$name[4071] <- usa_world_rank2$Institution[325]
+diversity_school2$name[1371] <- usa_world_rank2$Institution[327]
+diversity_school2$name[2824] <- usa_world_rank2$Institution[328]
+diversity_school2$name[3953] <- usa_world_rank2$Institution[335]
+diversity_school2$name[3688] <- usa_world_rank2$Institution[336]
+diversity_school2$name[2758] <- usa_world_rank2$Institution[345]
+diversity_school2$name[3460] <- usa_world_rank2$Institution[346]
+```
+
+```{r, echo = FALSE}
+#join data from diversity data and world ranking data
+rank_diversity_df <- inner_join(diversity_school2, usa_world_rank2, by = c("name" = "Institution")) %>%
+  arrange(National.Rank)
+```
+
+```{r, echo = FALSE}
+#third data source
+#import univrsity statistics (downloaded from kaggle)
+university_stat <- fromJSON("schoolInfo.json")
+#select only important columns
+university_stat <- university_stat %>%
+  select(`act-avg`, `sat-avg`, `acceptance-rate`, `percent-receiving-aid`, `cost-after-aid`, institutionalControl, tuition, displayName)
+```
+
+```{r, echo = FALSE}
+#start cleaning data for further join
+#need to change a lot of university name
+university_stat2 <- university_stat
+university_stat2[(str_detect(university_stat2$displayName, "--")), ]$displayName <- str_replace(university_stat2[(str_detect(university_stat2$displayName, "--")), ]$displayName, "--", " at ")
+university_stat2$displayName[60] <- rank_diversity_df$name[16]
+university_stat2$displayName[53] <- rank_diversity_df$name[17]
+university_stat2$displayName[44] <- rank_diversity_df$name[21]
+university_stat2$displayName[52] <- rank_diversity_df$name[31]
+university_stat2$displayName[54] <- rank_diversity_df$name[36]
+university_stat2$displayName[92] <- rank_diversity_df$name[37]
+university_stat2$displayName[57] <- rank_diversity_df$name[38]
+university_stat2$displayName[193] <- rank_diversity_df$name[89]
+university_stat2$displayName[90] <- rank_diversity_df$name[61]
+university_stat2$displayName[77] <- rank_diversity_df$name[63]
+university_stat2$displayName[115] <- rank_diversity_df$name[64]
+university_stat2$displayName[84] <- rank_diversity_df$name[66]
+university_stat2$displayName[123] <- rank_diversity_df$name[67]
+university_stat2$displayName[98] <- rank_diversity_df$name[68]
+university_stat2$displayName[100] <- rank_diversity_df$name[90]
+university_stat2$displayName[102] <- rank_diversity_df$name[92]
+```
+
+```{r, echo = FALSE}
+#join data from source 3 to rank_diversity_df
+rank_diversity_df <- left_join(rank_diversity_df, university_stat2, by = c("name" = "displayName")) 
+```
+
+```{r, echo = FALSE}
+#change name of the university to be the official name to be easier to recognize
+rank_diversity_df$name[6] <- "University of California, Berkeley"
+rank_diversity_df$name[13] <- "University of California, Los Angeles"
+rank_diversity_df$name[14] <- "University of Michigan, Ann Arbor"
+rank_diversity_df$name[16] <- "University of Washington"
+rank_diversity_df$name[17] <- "University of Illinois at Urbana-Champaign"
+rank_diversity_df$name[19] <- "University of Wisconsin-Madison"
+rank_diversity_df$name[23] <- "University of California, San Francisco"
+rank_diversity_df$name[25] <- "University of Minnesota"
+rank_diversity_df$name[32] <- "Rutgers University-New Brunswick"
+rank_diversity_df$name[34] <- "University of California, Davis"
+rank_diversity_df$name[40] <- "University of California, Irvine"
+rank_diversity_df$name[41] <- "University of California, Santa Barbara"
+rank_diversity_df$name[48] <- "Texas A&M University"
+rank_diversity_df$name[53] <- "University of Maryland"
+rank_diversity_df$name[67] <- "University of Missouri"
+rank_diversity_df$name[72] <- "University of California, Riverside"
+rank_diversity_df$name[75] <- "University of California, Santa Cruz"
+rank_diversity_df$name[86] <- "University of Maryland, Baltimore"
+rank_diversity_df$name[89] <- "Indiana University-Purdue University Indianapolis"
+rank_diversity_df$name[92] <- "University of Tennessee"
+```
+
+```{r, echo = FALSE}
+salary_potential2 <- salary_potential
+#change university name (for further inner join)
+salary_potential2$name[574] <- rank_diversity_df$name[4]
+salary_potential2$name[61] <- rank_diversity_df$name[6]
+salary_potential2$name[69] <- rank_diversity_df$name[13]
+salary_potential2$name[64] <- rank_diversity_df$name[21]
+salary_potential2$name[73] <- rank_diversity_df$name[34]
+salary_potential2$name[70] <- rank_diversity_df$name[40]
+salary_potential2$name[68] <- rank_diversity_df$name[41]
+salary_potential2$name[867] <- rank_diversity_df$name[16]
+salary_potential2$name[404] <- rank_diversity_df$name[14]
+salary_potential2$name[795] <- rank_diversity_df$name[22]
+salary_potential2$name[430] <- rank_diversity_df$name[25]
+salary_potential2$name[797] <- rank_diversity_df$name[70]
+salary_potential2$name[467] <- rank_diversity_df$name[27]
+salary_potential2$name[708] <- rank_diversity_df$name[31]
+salary_potential2$name[843] <- rank_diversity_df$name[35]
+salary_potential2$name[633] <- rank_diversity_df$name[36]
+salary_potential2$name[215] <- rank_diversity_df$name[38]
+salary_potential2$name[225] <- rank_diversity_df$name[89]
+salary_potential2$name[715] <- rank_diversity_df$name[39]
+salary_potential2$name[149] <- rank_diversity_df$name[45]
+salary_potential2$name[794] <- rank_diversity_df$name[48]
+salary_potential2$name[355] <- rank_diversity_df$name[53]
+salary_potential2$name[220] <- rank_diversity_df$name[61]
+salary_potential2$name[397] <- rank_diversity_df$name[63]
+salary_potential2$name[31] <- rank_diversity_df$name[64]
+salary_potential2$name[593] <- rank_diversity_df$name[66]
+salary_potential2$name[468] <- rank_diversity_df$name[67]
+salary_potential2$name[797] <- rank_diversity_df$name[70]
+salary_potential2$name[635] <- rank_diversity_df$name[81]
+salary_potential2$name[85] <- rank_diversity_df$name[82]
+salary_potential2$name[844] <- rank_diversity_df$name[91]
+salary_potential2$name[773] <- rank_diversity_df$name[92]
+salary_potential2$name[561] <- rank_diversity_df$name[93]
+salary_potential2$name[133] <- rank_diversity_df$name[95]
+```
+
+```{r, echo = FALSE}
+#join all data
+rank_diversity_df <- left_join(rank_diversity_df, salary_potential2, by = c("name" = "name")) %>%
+  select(-c("Location", "Quality.of.Education", "Alumni.Employment", "Quality.of.Faculty", "Research.Performance", "Score", "rank", "state_name"))
+#final data which only select university within 100th national rankings
+top100Data <- rank_diversity_df[1:96, ]
+#manually fill NA
+#manually fill only university type because this information can be easily searched from internet
+top100Data$institutionalControl[23] <- "public"
+top100Data$institutionalControl[26] <- "public"
+top100Data$institutionalControl[50] <- "public"
+top100Data$institutionalControl[56] <- "private"
+top100Data$institutionalControl[60] <- "private"
+top100Data$institutionalControl[70] <- "public"
+top100Data$institutionalControl[77] <- "public"
+top100Data$institutionalControl[86] <- "public"
+#save final data to csv file
+write.csv(top100Data, "top100Data.csv", row.names = FALSE)
+```
+
+```{r, echo = FALSE}
+#number of universities in top ranking by state
+count_state <- top100Data %>%
+  select(state) %>%
+  group_by(state) %>%
+  summarise(value = n()) %>%
+  arrange(desc(value))
+```
+After I finished cleaning data and merge all of my data source into one data frame, I calculated total number of universities from each state. Then, I ranked only top 10 state in top 100 USA national university rankings and showed it in Table 2.
+
+```{r, echo = FALSE}
+#to see top state in the ranking
+result_table2 <- data.frame(head(count_state, 10))
+names(result_table2) <- c("State", "Count")
+kable(result_table2) %>% kable_styling(bootstrap_options = "striped", full_width = F)
+```
+\begin{center}
+Table 2. Top 10 states in top 100 USA national university rankings.
+\end{center} 
+
+```{r, echo = FALSE}
+#change column name to be compatible with the choroplethr package
+names(count_state)[1] <- "region"
+count_state$region <- tolower(count_state$region)
+#change some of state name to be compatible with choroplethr package
+count_state$region[count_state$region == "washington"] <- "district of columbia"
+```
+
+```{r, echo = FALSE, include = FALSE}
+#get state name from the choroplethrMaps package
+data(continental_us_states)
+count_state2 <- data.frame(continental_us_states)
+names(count_state2)[1] <- "region"
+count_state2 <- left_join(count_state2, count_state, key = c("region" = "region"))
+count_state2$value <- replace_na(count_state2$value, 0)
+```
+
+Then, I changed column name and some of state name to make my data compatible with the choroplethr package. Following, I attached state name from the choroplethrMaps package and merged it with my data and then I created a choropleth map of my data as shown in Figure 2.
+
+```{r, echo = FALSE}
+#create a choropleth map
+state_choropleth(count_state2, zoom = continental_us_states)
+```
+\begin{center}
+Figure 2. The number of university in top 2000 ranking by state.
+\end{center} 
+
+As shown in Figure 3, I plotted the relation between acceptance rate and national ranking, and used stat_smooth() to see their linear relationship. Acceptance rate is the rate at which applicants are accepted. The lower acceptance rate, the harder applicants get admitted. As expected, university with better ranking has lower acceptance rate. Also, it is significantly low for university within top 10 ranking. For the relation between tuition fee and national ranking, university with better ranking has higher tuiton fee which is interesting. This might mean that higher tuition can provide better education quality. So, I want to see more about tuition fee.  
+\  
+```{r, warning = FALSE, fig.width = 8, fig.height = 6, echo = FALSE}
+#acceptance rate vs. national ranking
+f1 <- ggplot(data = top100Data, aes(x = National.Rank, y = `acceptance-rate`)) + geom_point() + xlab("National Ranking") + ylab("Acceptance Rate") + stat_smooth(method = "lm", formula = y ~ x, size = 1)
+#tuition fee vs. national ranking
+f2 <- ggplot(data = top100Data, aes(x = National.Rank, y = tuition)) + geom_point() + xlab("National Ranking") + ylab("Tuition Fee") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+#use grid.arrange() to arrange plots
+grid.arrange(f1, f2, ncol = 1)
+```
+\begin{center}
+Figure 3. Upper: Relation between acceptance rate and national ranking. Lower: Relation between tuition fee and national ranking.
+\end{center} 
+
+Next, I plotted the relation between percent of students who received aid and national ranking. We can see from Figure 4 that university with better ranking offers aid to their students more than university in lower ranking. When looking into tuition fee after receiving aid, total tuition fee of university with better ranking is lower than total tuition fee of university in lower ranking. As they give our more funding, they can attract many talented students. Also, some students are really smart, but they do not have sufficient money. This might be the reason why university in high ranking have higher education quality. So, I wanted to look more into a type of university because private university and public university have different type of funding system.
+\  
+
+```{r, warning = FALSE, fig.width = 8, fig.height = 6, echo = FALSE}
+#percent of students who received aid vs. national ranking
+f3 <- ggplot(data = top100Data, aes(x = National.Rank, y = `percent-receiving-aid`)) + geom_point() + xlab("National Ranking") + ylab("Percent Receiving Aid") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+#tuition fee after received aid vs. national ranking
+f4 <- ggplot(data = top100Data, aes(x = National.Rank, y = `cost-after-aid`)) + geom_point() + xlab("National Ranking") + ylab("Tution Fee (after receiving aid)") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+#arrange plots
+grid.arrange(f3, f4, ncol = 1)
+```
+\begin{center}
+Figure 4. Upper: Relation between percent of students who received aid and national ranking. Lower: Relation between tuition fee after receiving aid and national ranking.
+\end{center} 
+
+Public university is funded by state governments. In contrast, private university relies on private contributions. So, private university tuition fee is generally higher. To prove this claim, I plotted to see differences between private university and public university. In data preprocessing, there are 8 missing data in the column indicating private or public. So, I manually filled NA because this information can be easily searched from internet (unlike acceptance rate or percent of students who received aid). There are 33 private university and 63 public university within the 100 national ranking. As usual, private university tuition fee is higher than public university tuition fee. But, average percent of students who received aid from private university is two times higher. This means private university in my dataset receives plentyful private contributions.
+\  
+
+```{r, echo = FALSE, fig.width = 7, fig.height = 4}
+#group data by university type (private or public)
+#find total number, average of tuition fee and average of percent of students who received aid
+school_type <- top100Data %>% 
+  select(institutionalControl, tuition, `percent-receiving-aid`) %>% 
+  group_by(institutionalControl) %>% 
+  summarise(
+    Count = n(),
+    Average_Tuition = mean(tuition, na.rm = TRUE),
+    Average_Aid = mean(`percent-receiving-aid`, na.rm = TRUE)
+  ) 
+  
+school_type$institutionalControl[1] <- "Private"
+school_type$institutionalControl[2] <- "Public"
+school_type$Average_Tuition <- formatC(school_type$Average_Tuition / 1000, digits = 2, format = "f")
+school_type$Average_Aid <- formatC(school_type$Average_Aid, digits = 2, format = "f")
+#total number bar plot
+f5 <- ggplot(school_type, aes(x = institutionalControl, y = Count)) + geom_bar(stat = "identity") + xlab("University Type") + ylab("Count") + geom_text(aes(label = Count), vjust = 1.6, color = "white", size = 5) + theme_light(base_size = 15)
+#average tuition fee bar plot
+f6 <- ggplot(school_type, aes(x = institutionalControl, y = Average_Tuition)) + geom_bar(stat = "identity") + xlab("University Type") + ylab("Tuition Fee (in thousand)") + geom_text(aes(label = Average_Tuition), vjust = 1.6, color = "white", size = 5) + theme_light(base_size = 15)
+#average of percent of students who received aid bar plot
+f7 <- ggplot(school_type, aes(x = institutionalControl, y = Average_Aid)) + geom_bar(stat = "identity") + xlab("University Type") + ylab("Average of Receiving Aid") + geom_text(aes(label = Average_Aid), vjust = 1.6, color = "white", size = 5) + theme_light(base_size = 15)
+#arrange plots to make them easier to compare
+grid.arrange(f5, f6, f7, ncol = 3)
+```
+\begin{center}
+Figure 5. Left: total number of private university and public university in top 100 ranking. Middle: average tuition fee of private university and public university. Right: average percent of students who received aid of private university and public university.
+\end{center} 
+
+Next, I plotted to see the relation between tuition fee and national ranking and the relation between percent of students who received aid and national ranking again. But this time, I colored each point by university type because I want to see their distinction. We can see that private university tends to have better rank than public university. Almost all of the top 10th university are private university. Most of private university tuition fee are higher than public university tuition fee. But, most of private university offers more funding to their students. We can see that almost half of the students in private university received aid. This might be the reason why private university has many intelligent students even though their tuition fee is high.
+\  
+
+```{r, warning = FALSE, echo = FALSE, fig.width = 8, fig.height = 6}
+#tuition fee vs. national ranking colored by university type
+f8 <- ggplot(data = top100Data, aes(x = National.Rank, y = tuition, color = institutionalControl)) + geom_point() + xlab("National Ranking") + ylab("Tuition Fee") + scale_colour_discrete(name = "University Type", labels = c("Private", "Public")) 
+#percent of students who received aid vs. national ranking colored by university type
+f9 <- ggplot(data = top100Data, aes(x = National.Rank, y = `percent-receiving-aid`, color = institutionalControl)) + geom_point() + xlab("National Ranking") + ylab("Percent Receiving Aid") + scale_colour_discrete(name = "University Type", labels = c("Private", "Public"))  
+#arrange plots
+grid.arrange(f8, f9, ncol = 1)
+```
+\begin{center}
+Figure 6. Upper: Relation between tuition fee and national ranking colored with university type. Lower: Relation between percent of students who received aid and national ranking colored with university type.
+\end{center} 
+
+Diverity dataset provides many races, i.e. White, Black, Hispanic, Asian, American Indian / Alaska Native, Native Hawaiian / Pacific Islander, Two Or More Races, Non-Resident Foreign, Total Minority and Unknown. So, I chose only major race, i.e. White, Black, Hispanic and Asian. Then, I need to re-scale the numebr to make total of 4 races 100%. Next, I mutate the numbers and then use gather() for futher barplot.
+\  
+
+```{r, echo = FALSE, include = FALSE}
+#scale percentage to 100% to make it convenient to compare
+top100Data <- top100Data %>%
+  mutate(total = White + Black + Hispanic + Asian) %>%
+  mutate(White2 = White * 100 / total, Black2 = Black * 100 / total, Hispanic2 = Hispanic * 100 / total, Asian2 = Asian * 100 / total)
+#gather by race
+top100Data2 <- gather(top100Data, key = "Race", value = value, White2, Black2, Hispanic2, Asian2) %>% arrange(National.Rank)
+top100Data2$Race <- str_replace(top100Data2$Race, "2", "")
+```
+
+There are many articles stating about how diversity benefit education quality. To prove this claim, I plotted diversity percentage of each university in 100 ranking. University in top 50 ranking is shown in Figure 7 and the rest is shown in Figure 9. As we found out earlier that California has the higher number in the top 100 ranking, I plotted Figure 8 to examine only university in California. There are 12 universities and we can see that they have high diversity. Also, they have high percentage of Asian students comparing to other races, which might be because many Asian people live in California.
+\  
+
+```{r, echo = FALSE, fig.width = 8, fig.height = 8}
+#use ggplot2 barplot to demonstrate the percentage of diversity
+#for university in top 50 ranking
+axis_lable1 <- c(top100Data$name[1:49])
+axis_lable1 <- axis_lable1[order(-1:-49)] #need to reorder to get the right order
+ggplot(data = top100Data2[1:196, ], aes(x = name, y = value, fill = Race)) + geom_bar(stat = "identity") + coord_flip() + scale_x_discrete(limits = axis_lable1) + theme(axis.title.x = element_blank(), axis.title.y = element_blank())
+```
+\begin{center}
+Figure 7. Diversity percentage of university in 1-50 ranking.
+\end{center} 
+```{r, echo = FALSE, fig.width = 8, fig.height = 2.2}
+#extract only California data
+ca_top100 <- top100Data2 %>%
+  filter(state == "California")
+ggplot(data = ca_top100, aes(x = name, y = value, fill = Race)) + geom_bar(stat = "identity") + coord_flip() + scale_x_discrete(limits = unique(ca_top100$name)[order(-1:-12)]) + theme(axis.title.x = element_blank(), axis.title.y = element_blank())
+```
+\begin{center}
+Figure 8. Diversity percentage of university in California.
+\end{center} 
+
+For Figure 9, we can see that these universities have less diversity than top 50 university. Studying in diverse environment provides opportunity to learn from people with different backgrounds and this might lead to collaboration and innovation. It is always nice to learn from people who have difference experience and backgrounds. Also, diversity encourage students to challege themselves. Consequently, diversity may actually be the main reason for the better ranking. 
+\  
+
+```{r, echo = FALSE, fig.width = 8, fig.height = 8}
+#use ggplot2 barplot to demonstrate the percentage of diversity
+#for university in 51-100th ranking
+axis_lable2 <- c(top100Data$name[50:96])
+axis_lable2 <- axis_lable2[order(-1:-47)]
+ggplot(data = top100Data2[197:384, ], aes(x = name, y = value, fill = Race)) + geom_bar(stat = "identity") + coord_flip() + scale_x_discrete(limits = axis_lable2) + theme(axis.title.x = element_blank(), axis.title.y = element_blank())
+```
+\begin{center}
+Figure 9. Diversity percentage of university in 51-100 ranking.
+\end{center} 
+
+SAT score and ACT score are a standardized test used for college admissions in the United States. As expected, students who got into university in better ranking have higher test score. This information is useful for students who is considering applying for college admissions. As admission has a fee and application process need a letter of recommendation, students need to consider whether they will be admitted or not. The record can inspire students to keep pushing themselves if they want to get in a high ranking university. Also, high school teachers can use this data to encourage their students and make a better preparation for them.
+\  
+
+```{r, echo = FALSE, fig.width = 8, fig.height = 6, warning = FALSE}
+#average ACT score vs. national ranking
+f10 <- ggplot(data = top100Data, aes(x = National.Rank, y = `act-avg`)) + geom_point() + xlab("National Ranking") + ylab("Average ACT Score") + stat_smooth(method = "lm", formula = y ~ x, size = 1)
+#average SAT score vs. national ranking
+f11 <- ggplot(data = top100Data, aes(x = National.Rank, y = `sat-avg`)) + geom_point() + xlab("National Ranking") + ylab("Average SAT Score") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+#arrange plots
+grid.arrange(f10, f11, ncol = 1)
+```
+\begin{center}
+Figure 10. Upper: Relation between ACT score and national ranking. Lower: Relation between SAT score and national ranking.
+\end{center} 
+
+Next, I plotted to see the relation between early career salary and national ranking, and the relation between mid-career salary and national ranking. We can see that people who graduted from better ranking university tend to have higher salary which is not surprising. Students graduated from famous university might be able to ask for higher salary. Also, it might be easier for them to get a job in the top biggest company. Even when they are at the middle of their career, they still tend to get better pay. This might indicate that they tend to get promotion and be succesful in their career.
+\  
+
+```{r, echo = FALSE, warning = FALSE, fig.width = 8, fig.height = 6, warning = FALSE}
+#early career salary vs. national ranking 
+f12 <- ggplot(data = top100Data, aes(x = National.Rank, y = early_career_pay)) + geom_point() + xlab("National Ranking") + ylab("Early Career Pay") + stat_smooth(method = "lm", formula = y ~ x, size = 1)
+#mid-career salary vs. national ranking
+f13 <- ggplot(data = top100Data, aes(x = National.Rank, y = mid_career_pay)) + geom_point() + xlab("National Ranking") + ylab("Mid Career Pay") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+#arrange plots
+grid.arrange(f12, f13, ncol = 1)
+```
+\begin{center}
+Figure 11. Upper: Relation between early career salary and national ranking. Lower: Relation between mid-career salary and national ranking.
+\end{center} 
+
+Then, I plotted to see the relation between percent of student body in STEM and national ranking. University in higher ranking tends to have higer percent of student body in STEM, and this might be the reason why students graduted from higher rank university get higher salary. However, looking into percent of alumni who think they are making the world a better place graph, we can see that higher number of students graduating from lower rank university think they are making the world a better place. This might be able to infer that those students are happier and less stressful.
+\  
+
+```{r, echo = FALSE, fig.width = 8, fig.height = 6, warning = FALSE}
+#percent of student body in STEM vs. national ranking 
+f14 <- ggplot(data = top100Data, aes(x = National.Rank, y = stem_percent)) + geom_point() + xlab("National Ranking") + ylab("STEM Percentage") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+#percent of alumni who think they are making the world a better place vs. national ranking 
+f15 <- ggplot(data = top100Data, aes(x = National.Rank, y = make_world_better_percent)) + geom_point() + xlab("National Ranking") + ylab("Make World Better Percentage") + stat_smooth(method = "lm", formula = y ~ x, size = 1)  
+#arrange plots
+grid.arrange(f14, f15, ncol = 1)
+```
+\begin{center}
+Figure 12. Upper: Relation between percent of student body in STEM and national ranking. Lower: Relation between percent of alumni who think they are making the world a better place and national ranking.
+\end{center} 
+
+# Conclusion
+University ranking record is widely publish. Anybody can access this record. Although, these data need a lot of preprocessing, they provide many insights. For example, students can use this record to estimate which university they can get admitted. As every univrsity wants to develop and get a better rank, faculty member can use this data to make action, such as provide more funding to students, increase diversity environment, etc. In addition, there are many factors contributing to the ranking. By investigating all plots, funding and diversity seem to be the most important factors. However, further research should be conducted.
+
+# Reference
+* (n.d.). CWUR - World University Rankings 2019-2020. Retrieved from https://cwur.org/2019-2020.php
+
+- Thomas Mock, Jessie Mostipak. (2020, Mar 9). College tuition, diversity, and pay. Retrieved from https://github.com/rfordatascience/tidytuesday/blob/master/data/2020/2020-03-10/readme.md
+
++ Christopher Lambert. (2018, Jan 21). University Statistics. Retrieved from 
+https://www.kaggle.com/theriley106/university-statistics
