@@ -78,7 +78,7 @@ n_country <- world_rank %>%
 ```
 
 # Results
-After I downloaded top 2000 world university rankings, I calculated total number of universities from each country. Table 1 shows top 10 ountries in top 2000 world university rankings. We can see that United States of America has the highest number, following by China and Japan. So, I determined to look deeper into education system in USA.
+After I downloaded top 2000 world university rankings, I calculated total number of universities from each country. Table 1 shows top 10 ountries in top 2000 world university rankings. We can see that United States of America has the highest number, followed by China and Japan. So, I determined to look deeper into education system in USA.
 &nbsp; 
 ```{r, echo = FALSE}
 #see top countries in the ranking
